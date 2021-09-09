@@ -135,7 +135,13 @@ def exit_app():
 root = Tk()
 root.title("X-Dock Manager")
 root.iconbitmap("XDMGR.ico")
-root.geometry("1024x768")
+w = 1024
+h = 768
+ws = root.winfo_screenwidth()
+hs = root.winfo_screenheight()
+x = (ws/2) - (w/2)
+y = (hs/2) - (h/2)
+root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 root.wm_protocol("WM_DELETE_WINDOW", lambda: exit_app())
