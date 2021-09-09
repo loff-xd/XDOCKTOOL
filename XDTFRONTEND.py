@@ -5,6 +5,7 @@ __copyright__ = "Copyright 2021, Lachlan Angus"
 
 from tkinter import *
 from tkinter import ttk, filedialog
+import sys as system
 
 import XDTBACKEND as backend
 
@@ -127,6 +128,7 @@ def HR_manager():
 def exit_app():
     backend.json_save()
     root.destroy()
+    system.exit()
 
 
 # Root Window
