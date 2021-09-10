@@ -23,7 +23,7 @@ def open_mhtml():
 
         combo_select_manifest.set(imported_manifest_id)
         interface_update()
-    except:
+    except Exception:
         pass
 
 
@@ -33,6 +33,18 @@ def generate_pdf():
                                                  initialfile=str(manifest.manifest_id + ".pdf"))
     if len(save_location) > 0:
         backend.generate_pdf(manifest, save_location)
+
+
+def interface_init(*event):
+    if user_settings["show_all_articles"]:
+        check_show_all_articles.select()
+    else:
+        check_show_all_articles.deselect()
+
+    if user_settings["open_on_save"]:
+        check_open_on_save.select()
+    else:
+        check_open_on_save.deselect()
 
 
 def interface_update(*event):
@@ -53,20 +65,20 @@ def interface_update(*event):
         preview_text.configure(text="Manifest " + selected_manifest + " preview:")
 
 
-def HR_manager():
+def hs_sscc_manager():
     if len(selected_manifest) > 0:
 
         manifest = backend.get_manifest_from_id(selected_manifest)
 
-        hr_manager_window = Toplevel(root)
-        hr_manager_window.wait_visibility()
-        hr_manager_window.grab_set()
-        hr_manager_window.title("Select HR entries")
-        hr_manager_window.geometry("300x600")
-        hr_manager_window.rowconfigure(0, weight=1)
-        hr_manager_window.columnconfigure(0, weight=1)
+        hr_sscc_manager_window = Toplevel(root)
+        hr_sscc_manager_window.wait_visibility()
+        hr_sscc_manager_window.grab_set()
+        hr_sscc_manager_window.title("Select HR entries")
+        hr_sscc_manager_window.geometry("300x600")
+        hr_sscc_manager_window.rowconfigure(0, weight=1)
+        hr_sscc_manager_window.columnconfigure(0, weight=1)
 
-        dialog_frame = ttk.Frame(hr_manager_window)
+        dialog_frame = ttk.Frame(hr_sscc_manager_window)
         dialog_frame.grid(sticky=(N, S, E, W))
         dialog_frame.rowconfigure(0, weight=1)
         dialog_frame.columnconfigure(0, weight=1)
@@ -118,8 +130,8 @@ def HR_manager():
             backend.manifests.append(manifest)
             backend.json_save()
             interface_update()
-            hr_manager_window.grab_release()
-            hr_manager_window.destroy()
+            hr_sscc_manager_window.grab_release()
+            hr_sscc_manager_window.destroy()
 
         dialog_close_button = Button(dialog_frame, text="Finished", command=save_hr)
         dialog_close_button.grid(column=0, row=1)
@@ -139,8 +151,8 @@ w = 1024
 h = 768
 ws = root.winfo_screenwidth()
 hs = root.winfo_screenheight()
-x = (ws/2) - (w/2)
-y = (hs/2) - (h/2)
+x = (ws / 2) - (w / 2)
+y = (hs / 2) - (h / 2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
@@ -165,7 +177,7 @@ combo_select_manifest.grid_configure(padx=10, pady=5)
 button_open = Button(control_panel, text="Import MHTML", command=open_mhtml)
 button_open.grid(column=1, row=0)
 
-button_set_hr = Button(control_panel, text="HR Config", command=HR_manager)
+button_set_hr = Button(control_panel, text="HR Config", command=hs_sscc_manager)
 button_set_hr.grid(column=2, row=0)
 
 button_export_pdf = Button(control_panel, text="Save PDF", command=generate_pdf)
@@ -175,13 +187,11 @@ var_show_all_articles = IntVar()
 check_show_all_articles = Checkbutton(control_panel, text="Show all articles", variable=var_show_all_articles,
                                       command=interface_update)
 check_show_all_articles.grid(column=10, row=0)
-check_show_all_articles.deselect()
 
 var_open_on_save = IntVar()
 check_open_on_save = Checkbutton(control_panel, text="Open on save", variable=var_open_on_save,
                                  command=interface_update)
 check_open_on_save.grid(column=11, row=0)
-check_open_on_save.select()
 
 # Preview title
 preview_text = Label(main_container, text="Manifest preview:")
@@ -205,5 +215,5 @@ text_preview['yscrollcommand'] = preview_scroll.set
 for child in main_container.winfo_children():
     child.grid_configure(padx=5, pady=5)
 
-
+root.after(100, interface_init)
 root.mainloop()

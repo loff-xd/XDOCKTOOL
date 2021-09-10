@@ -15,7 +15,7 @@ from fpdf import FPDF
 from tabulate import tabulate
 
 manifests = []
-manifest_file = "manifests.json"
+xdt_userdata_file = "xdt_userdata.json"
 
 user_settings = {
     "show_all_articles": False,
@@ -66,12 +66,12 @@ class SSCC:
             article_list.append(article.export())
         return {"SSCC": self.sscc, "is_HR": self.is_HR, "Articles": article_list}
 
-    def check_HR(self):
+    def check_hr(self):
         for article in self.articles:
             if article.is_HR:
                 self.is_HR = True
 
-    def HR_repr(self):
+    def hr_repr(self):
         if self.is_HR:
             return "(HR)"
         else:
@@ -135,7 +135,7 @@ def junk_check(var):
         if len(var[1][0]) > 4:
             int(var[1][0])
             return True
-    except:
+    except Exception:
         return False
 
 
@@ -181,22 +181,27 @@ def json_load():
     # Load the JSON
     global manifests
     manifests.clear()
-    if not os.path.isfile(manifest_file):
-        with open(manifest_file, "a+") as file:
+    if not os.path.isfile(xdt_userdata_file):
+        with open(xdt_userdata_file, "a+") as file:
             json.dump([], file)
-    with open(manifest_file, "r") as file:
-        manifest_in = json.load(file)
+    with open(xdt_userdata_file, "r") as file:
+        xdt_userdata = json.load(file)
 
     # Convert JSON back into manifest array
-    for manifest in manifest_in:
-        new_manifest = Manifest(manifest["Manifest ID"])
-        for sscc in manifest["SSCCs"]:
-            new_sscc = SSCC(sscc["SSCC"])
-            new_sscc.is_HR = sscc["is_HR"]
-            for article in sscc["Articles"]:
-                new_sscc.articles.append(Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"]))
-            new_manifest.ssccs.append(new_sscc)
-        manifests.append(new_manifest)
+    for entry in xdt_userdata:
+        try:
+            new_manifest = Manifest(entry["Manifest ID"])
+            for sscc in entry["SSCCs"]:
+                new_sscc = SSCC(sscc["SSCC"])
+                new_sscc.is_HR = sscc["is_HR"]
+                for article in sscc["Articles"]:
+                    new_sscc.articles.append(Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"]))
+                new_manifest.ssccs.append(new_sscc)
+            manifests.append(new_manifest)
+        except KeyError:
+            global user_settings
+            print(entry["userdata"])
+            user_settings = entry["userdata"]
 
 
 def json_save():
@@ -204,17 +209,18 @@ def json_save():
     json_out = []
     for manifest in manifests:
         json_out.append(manifest.export())
-    os.rename(manifest_file, (manifest_file + ".bak"))
-    with open(manifest_file, "a+") as file:
+    json_out.append({"userdata": user_settings})
+    os.rename(xdt_userdata_file, (xdt_userdata_file + ".bak"))
+    with open(xdt_userdata_file, "a+") as file:
         json.dump(json_out, file, indent=4)
-    os.remove(manifest_file + ".bak")
+    os.remove(xdt_userdata_file + ".bak")
 
 
-def do_HR_check():
+def do_hr_check():
     # TODO HR Article register
     for manifest in manifests:
         for sscc in manifest.ssccs:
-            sscc.check_HR()
+            sscc.check_hr()
 
 
 def generate_pdf(manifest, pdf_location):
@@ -228,13 +234,14 @@ def generate_pdf(manifest, pdf_location):
 
     # Make the table for the PDF
     # TODO Multiple modes
-    do_HR_check()
+    do_hr_check()
     pdf_file.set_font('Courier', '', 9)
     pdf_file.set_fill_color(220)
     tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
 
     for sscc in sorted(manifest.ssccs):
-        tb_content.append([sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.HR_repr(), sscc.short_sscc, "[    ]"])
+        tb_content.append([sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(),
+                           sscc.short_sscc, "[    ]"])
 
     cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple")).split("\n")
 
@@ -263,7 +270,7 @@ def format_preview(selected_manifest):
     tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
     for sscc in sorted(manifest.ssccs):
         tb_content.append(
-            [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.HR_repr(), sscc.short_sscc,
+            [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
              "[  ]"])
     return tabulate(tb_content, headers="firstrow", tablefmt="fancy_grid")
 
