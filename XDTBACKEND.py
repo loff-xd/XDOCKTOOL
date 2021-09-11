@@ -173,7 +173,8 @@ def mhtml_importer(file_path):
             if new_manifest.manifest_id == "000000":
                 new_manifest.manifest_id = new_entry[0][0]
 
-    manifests.append(new_manifest)
+    if new_manifest not in manifests:
+        manifests.append(new_manifest)
     return new_manifest.manifest_id
 
 
@@ -200,7 +201,6 @@ def json_load():
             manifests.append(new_manifest)
         except KeyError:
             global user_settings
-            print(entry["userdata"])
             user_settings = entry["userdata"]
 
 

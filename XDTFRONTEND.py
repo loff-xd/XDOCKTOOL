@@ -15,6 +15,19 @@ user_settings = backend.user_settings
 
 
 # noinspection PyBroadException
+def do_argv_check(*args):
+    if len(system.argv) > 1:
+        try:
+            imported_manifest_id = backend.mhtml_importer(system.argv[1])
+            interface_update()
+
+            combo_select_manifest.set(imported_manifest_id)
+            interface_update()
+        except Exception as e:
+            print(e)
+
+
+# noinspection PyBroadException
 def open_mhtml():
     try:
         mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
@@ -215,5 +228,7 @@ text_preview['yscrollcommand'] = preview_scroll.set
 for child in main_container.winfo_children():
     child.grid_configure(padx=5, pady=5)
 
+
 root.after(100, interface_init)
+root.after(150, do_argv_check)
 root.mainloop()
