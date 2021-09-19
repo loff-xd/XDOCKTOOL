@@ -212,7 +212,7 @@ def json_load():
             manifests.append(new_manifest)
         except KeyError:
             global user_settings
-            user_settings = entry["userdata"]
+            user_settings.update(entry["userdata"])
 
 
 def json_save():
