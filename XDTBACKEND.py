@@ -17,9 +17,11 @@ from tabulate import tabulate
 manifests = []
 xdt_userdata_file = "xdt_userdata.json"
 
+# USER SETTING DEFAULTS
 user_settings = {
     "show_all_articles": False,
-    "open_on_save": True
+    "open_on_save": True,
+    "hr_articles": []
 }
 
 
@@ -66,15 +68,13 @@ class SSCC:
             article_list.append(article.export())
         return {"SSCC": self.sscc, "is_HR": self.is_HR, "Articles": article_list}
 
-    def check_hr(self):
-        for article in self.articles:
-            if article.is_HR:
-                self.is_HR = True
-
     def hr_repr(self):
         if self.is_HR:
-            return "(HR)"
+            return ":BOX"
         else:
+            for article in self.articles:
+                if article.is_HR:
+                    return ":ART"
             return "    "
 
     def article_repr(self):
@@ -115,18 +115,22 @@ class SSCC:
 
 
 class Article:
-    def __init__(self, code, desc, gtin, qty):
+    def __init__(self, code, desc, gtin, qty, is_HR):
         self.code = code
         self.desc = desc
         self.gtin = gtin
         self.qty = qty
-        self.is_HR = False
+        self.is_HR = is_HR
 
     def __repr__(self):
         return self.code
 
     def export(self):
         return {"Code": self.code, "Desc": self.desc, "GTIN": self.gtin, "QTY": self.qty, "is_HR": self.is_HR}
+
+    def do_HR_check(self):
+        if self.code in user_settings["hr_articles"]:
+            self.is_HR = True
 
 
 # noinspection PyBroadException
@@ -159,12 +163,15 @@ def mhtml_importer(file_path):
             # manifest[0], sscc[1], count[2], article[3], desc[4], handling_unit_uom[5], gtin[6], qty[7] -> Order
             # of information
             entry_placed = False
-            new_article = Article(new_entry[3][0], new_entry[4][0], new_entry[6][0], new_entry[7][0])
+            new_article = Article(new_entry[3][0], new_entry[4][0], new_entry[6][0], new_entry[7][0], False)
+
+            # Check if sscc already exists, add if not
             for exist_sscc in new_manifest.ssccs:
                 if exist_sscc.sscc == new_entry[1][0]:
                     exist_sscc.articles.append(new_article)
                     entry_placed = True
 
+            # if sscc exists, add article to it
             if not entry_placed:
                 new_sscc = SSCC(new_entry[1][0])
                 new_sscc.articles.append(new_article)
@@ -172,6 +179,10 @@ def mhtml_importer(file_path):
 
             if new_manifest.manifest_id == "000000":
                 new_manifest.manifest_id = new_entry[0][0]
+
+    for sscc in new_manifest.ssccs:
+        for article in sscc.articles:
+            article.do_HR_check()
 
     if new_manifest not in manifests:
         manifests.append(new_manifest)
@@ -196,7 +207,7 @@ def json_load():
                 new_sscc = SSCC(sscc["SSCC"])
                 new_sscc.is_HR = sscc["is_HR"]
                 for article in sscc["Articles"]:
-                    new_sscc.articles.append(Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"]))
+                    new_sscc.articles.append(Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"]))
                 new_manifest.ssccs.append(new_sscc)
             manifests.append(new_manifest)
         except KeyError:
@@ -216,13 +227,6 @@ def json_save():
     os.remove(xdt_userdata_file + ".bak")
 
 
-def do_hr_check():
-    # TODO HR Article register
-    for manifest in manifests:
-        for sscc in manifest.ssccs:
-            sscc.check_hr()
-
-
 def generate_pdf(manifest, pdf_location):
     # Create file and header
     pdf_file = FPDF("P", "mm", "A4")
@@ -233,8 +237,6 @@ def generate_pdf(manifest, pdf_location):
     pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
 
     # Make the table for the PDF
-    # TODO Multiple modes
-    do_hr_check()
     pdf_file.set_font('Courier', '', 9)
     pdf_file.set_fill_color(220)
     tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
@@ -247,7 +249,7 @@ def generate_pdf(manifest, pdf_location):
 
     # Darken for HR items
     for row in cell_text:
-        if "(HR)" in row:
+        if ":BOX" in row or ":ART" in row:
             pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", fill=True, border=1)
         else:
             pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", border=1)
