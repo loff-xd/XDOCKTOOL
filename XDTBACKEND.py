@@ -7,8 +7,6 @@ import datetime
 import email
 import json
 import os
-import platform
-import subprocess
 
 from bs4 import BeautifulSoup
 from fpdf import FPDF
@@ -29,6 +27,7 @@ class Manifest:
     def __init__(self, manifest_id):
         self.manifest_id = manifest_id
         self.ssccs = []
+        self.import_date = ""
 
     def __repr__(self):
         return self.manifest_id
@@ -37,7 +36,7 @@ class Manifest:
         sscc_list = []
         for sscc in self.ssccs:
             sscc_list.append(sscc.export())
-        return {"Manifest ID": self.manifest_id, "SSCCs": sscc_list}
+        return {"Manifest ID": self.manifest_id, "Import Date": self.import_date, "SSCCs": sscc_list}
 
     def __eq__(self, other):
         return int(self.manifest_id) == int(other.manifest_id)
@@ -185,42 +184,52 @@ def mhtml_importer(file_path):
             article.do_HR_check()
 
     if new_manifest not in manifests:
+        new_manifest.import_date = str(datetime.date.today())
         manifests.append(new_manifest)
     return new_manifest.manifest_id
 
 
+# noinspection PyBroadException
 def json_load():
     # Load the JSON
     global manifests
     manifests.clear()
     if not os.path.isfile(xdt_userdata_file):
         with open(xdt_userdata_file, "a+") as file:
-            json.dump([], file)
-    with open(xdt_userdata_file, "r") as file:
-        xdt_userdata = json.load(file)
+            json.dump({}, file)
+    else:
+        with open(xdt_userdata_file, "r") as file:
+            xdt_userdata = json.load(file)
 
-    # Convert JSON back into manifest array
-    for entry in xdt_userdata:
+        # Convert JSON back into manifest array
         try:
-            new_manifest = Manifest(entry["Manifest ID"])
-            for sscc in entry["SSCCs"]:
-                new_sscc = SSCC(sscc["SSCC"])
-                new_sscc.is_HR = sscc["is_HR"]
-                for article in sscc["Articles"]:
-                    new_sscc.articles.append(Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"]))
-                new_manifest.ssccs.append(new_sscc)
-            manifests.append(new_manifest)
-        except KeyError:
-            global user_settings
-            user_settings.update(entry["userdata"])
+            for entry in xdt_userdata.get("Manifests"):
+                new_manifest = Manifest(entry.get("Manifest ID", "000000"))
+                new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
+                for sscc in entry.get("SSCCs", []):
+                    new_sscc = SSCC(sscc["SSCC"])
+                    new_sscc.is_HR = sscc["is_HR"]
+                    for article in sscc.get("Articles", []):
+                        new_sscc.articles.append(
+                            Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"]))
+                    new_manifest.ssccs.append(new_sscc)
+                manifests.append(new_manifest)
+
+                global user_settings
+                user_settings.update(xdt_userdata.get("userdata", user_settings))
+
+        except:
+            pass
 
 
 def json_save():
     # Save manifests array to JSON
-    json_out = []
+    json_out = {}
+    manifest_out = []
     for manifest in manifests:
-        json_out.append(manifest.export())
-    json_out.append({"userdata": user_settings})
+        manifest_out.append(manifest.export())
+        json_out["Manifests"] = manifest_out
+    json_out["userdata"] = user_settings
     os.rename(xdt_userdata_file, (xdt_userdata_file + ".bak"))
     with open(xdt_userdata_file, "a+") as file:
         json.dump(json_out, file, indent=4)
@@ -233,7 +242,7 @@ def generate_pdf(manifest, pdf_location):
     pdf_file.add_page()
     pdf_file.set_font('Courier', '', 14)
     pdf_file.set_title(manifest.manifest_id)
-    title_text = "Manifest: " + manifest.manifest_id + " - Printed on: " + str(datetime.date.today())
+    title_text = "Manifest: " + manifest.manifest_id + " - Processed on: " + manifest.import_date
     pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
 
     # Make the table for the PDF
@@ -258,13 +267,12 @@ def generate_pdf(manifest, pdf_location):
     pdf_file.output(pdf_location, 'F')
 
     # Open the pdf if user has requested
-    if user_settings["open_on_save"]:
-        if platform.system() == 'Darwin':  # macOS
-            subprocess.call(('open', pdf_location))
-        elif platform.system() == 'Windows':  # Windows
-            os.startfile(pdf_location)
-        else:  # linux variants
-            subprocess.call('xdg-open', pdf_location)
+    os.startfile(pdf_location)
+
+
+def generate_DIL(manifest, pdf_location):
+    # TODO DIL GENERATION
+    pass
 
 
 def format_preview(selected_manifest):
