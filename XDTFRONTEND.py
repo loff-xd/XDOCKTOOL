@@ -14,6 +14,8 @@ selected_manifest = ""
 backend.json_load()
 user_settings = backend.user_settings
 
+application_version = "1.1.1"
+
 
 class XDTApplication(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -58,14 +60,17 @@ class ControlPanel(tk.Frame):
         self.combo_select_manifest["values"] = sorted(backend.manifests)
         self.combo_select_manifest.bind("<<ComboboxSelected>>", self.parent.interface_update)
 
-        self.button_open = tk.Button(self, text="Import MHTML", command=self.open_mhtml)
+        self.button_open = tk.Button(self, text="Import SAP MHTML", command=self.open_mhtml)
         self.button_open.grid(column=1, row=0, padx=5, pady=5)
 
-        self.button_set_hr = tk.Button(self, text="HR Manager", command=self.launch_high_risk_manager)
+        self.button_set_hr = tk.Button(self, text="High Risk Manager", command=self.launch_high_risk_manager)
         self.button_set_hr.grid(column=2, row=0, padx=5, pady=5)
 
         self.button_export_pdf = tk.Button(self, text="Save PDF", command=self.generate_pdf)
         self.button_export_pdf.grid(column=3, row=0, padx=5, pady=5)
+
+        self.button_gen_dil = tk.Button(self, text="Generate DIL")  # TODO DIL GENERATION
+        self.button_gen_dil.grid(column=4, row=0, padx=5, pady=5)
 
         self.var_show_all_articles = tk.IntVar()
         self.check_show_all_articles = tk.Checkbutton(self, text="Show all articles",
@@ -77,6 +82,9 @@ class ControlPanel(tk.Frame):
         self.check_open_on_save = tk.Checkbutton(self, text="Switch to PDF on save", variable=self.var_open_on_save,
                                                  command=self.parent.interface_update)
         self.check_open_on_save.grid(column=11, row=0, padx=5, pady=10)
+
+        self.button_help = tk.Button(self, text="Help")  # TODO HELP
+        self.button_help.grid(column=20, row=0, padx=5, pady=5, sticky="e")
 
         # Set user settings
         if user_settings["show_all_articles"]:
@@ -125,12 +133,11 @@ class PreviewFrame(tk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        self.preview_text = tk.Label(self, text="Manifest preview:")
-        self.preview_text.grid(column=0, row=0)
+        self.preview_text = tk.Label(self, text="No manifest loaded.")
+        self.preview_text.grid(column=0, row=0, sticky="w", pady=5)
 
         self.text_preview = tk.Text(self)
         self.text_preview.grid(column=0, row=1, sticky="nsew")
-        self.text_preview.insert(tk.INSERT, "No manifest loaded.")
         self.text_preview['state'] = 'disabled'
 
         self.preview_scroll = tk.Scrollbar(self, command=self.text_preview.yview)
@@ -398,7 +405,15 @@ class HighRiskManager(tk.Toplevel):
                     if sscc.is_HR:
                         for article in sscc.articles:
                             if not article.is_HR and article.code not in user_settings["hr_articles"]:
-                                self.article_list.append(article.code)
+                                self.article_list.append(article.code)  # Add to possibilities if has been in a HR box
+
+            for mani in backend.manifests:
+                for sscc in mani.ssccs:
+                    if not sscc.is_HR:
+                        for article in sscc.articles:
+                            while article.code in self.article_list:
+                                self.article_list.remove(
+                                    article.code)  # Remove from possibilities if article has been in a non-HR box
 
             self.article_list = [i for i in self.article_list if
                                  self.article_list.count(i) > 1]  # Remove all unique entries
@@ -422,9 +437,19 @@ class HighRiskManager(tk.Toplevel):
 
             self.columnconfigure(1, weight=1)
             self.columnconfigure(0, weight=10)
-            tk.Label(self, text="These articles have been in\n multiple high-risk SSCCs.\n\n"
-                                "Here you can add them to always be\nflagged as possible high-risk:\n\n"
-                                "(This gets more accurate over time\n with more manifests stored)").grid(column=0, row=1)
+
+            if len(backend.manifests) < 6:
+                suggestions_tip_text = "Check in later, this won't be accurate\n with only " + str(
+                    len(backend.manifests)) + " manifests stored. (Need 6)"
+                self.button_add_suggestions["state"] = "disabled"
+            else:
+                suggestions_tip_text = "This will be more accurate with more data.\n You currently have " + str(
+                    len(backend.manifests)) + " manifests stored."
+
+            tk.Label(self,
+                     text="These articles have always been in\nhigh-risk SSCCs but the articles were\nnever flagged as high risk themselves\n\n"
+                          "Here you can add them to automatically flag\nthe carton containing them as high-risk\n\n"
+                          + suggestions_tip_text).grid(column=0, row=1)
 
         def add_suggestions(self):
             for index in self.article_listbox.curselection():
@@ -465,7 +490,7 @@ def set_centre_geometry(target, w, h):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("X-Dock Manager")
+    root.title("X-Dock Manager - " + application_version)
     root.iconbitmap("XDMGR.ico")
     set_centre_geometry(root, 1024, 768)
     root.columnconfigure(0, weight=1)
