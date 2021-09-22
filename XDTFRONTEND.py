@@ -3,6 +3,7 @@
 __author__ = "Lachlan Angus"
 __copyright__ = "Copyright 2021, Lachlan Angus"
 
+import os
 import tkinter as tk
 import tkinter.messagebox
 from tkinter import ttk, filedialog
@@ -83,7 +84,7 @@ class ControlPanel(tk.Frame):
                                                  command=self.parent.interface_update)
         self.check_open_on_save.grid(column=11, row=0, padx=5, pady=10)
 
-        self.button_help = tk.Button(self, text="Help")  # TODO HELP
+        self.button_help = tk.Button(self, text="Help", command=self.get_help)
         self.button_help.grid(column=20, row=0, padx=5, pady=5, sticky="e")
 
         # Set user settings
@@ -123,6 +124,18 @@ class ControlPanel(tk.Frame):
         else:
             tkinter.messagebox.showwarning("Whoa there!",
                                            "Please select a manifest before launching the high risk manager")
+
+    @staticmethod
+    def get_help():
+        tkinter.messagebox.showinfo("Assistance with X-Dock Manager",
+                                    "Hey there,\n\n"
+                                    "The full documentation for this software can only be distributed internally. "
+                                    "It may already be in the application folder depending how you received this software.\n\n"
+                                    "The location of this application is currently:\n"
+                                    + str(os.getcwd()) + "\n\n"
+                                    "Any issues/bugs/suggestions can be logged via GitHub:\n"
+                                    "https://github.com/loff-xd/XDOCKTOOL\n\n"
+                                    "Cheers for taking the X-Dock Manager for a spin!")
 
 
 class PreviewFrame(tk.Frame):
