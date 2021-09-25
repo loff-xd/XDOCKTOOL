@@ -11,6 +11,7 @@ import os
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
+import textwrap
 
 manifests = []
 xdt_userdata_file = "xdt_userdata.json"
@@ -19,7 +20,8 @@ xdt_userdata_file = "xdt_userdata.json"
 user_settings = {
     "show_all_articles": False,
     "open_on_save": True,
-    "hr_articles": []
+    "hr_articles": [],
+    "DIL folder": ""
 }
 
 
@@ -44,6 +46,12 @@ class Manifest:
     def __lt__(self, other):
         return int(self.manifest_id) < int(other.manifest_id)
 
+    def get_sscc(self, sscc_id):
+        for sscc in self.ssccs:
+            if sscc.sscc == sscc_id:
+                return sscc
+        return None
+
 
 class SSCC:
     def __init__(self, sscc):
@@ -51,6 +59,7 @@ class SSCC:
         self.articles = []
         self.short_sscc = sscc[-4:]
         self.is_HR = False
+        self.dil_status = ""
 
     def __eq__(self, other):
         return self.short_sscc == other.short_sscc
@@ -65,7 +74,7 @@ class SSCC:
         article_list = []
         for article in self.articles:
             article_list.append(article.export())
-        return {"SSCC": self.sscc, "is_HR": self.is_HR, "Articles": article_list}
+        return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "Articles": article_list}
 
     def hr_repr(self):
         if self.is_HR:
@@ -120,12 +129,15 @@ class Article:
         self.gtin = gtin
         self.qty = qty
         self.is_HR = is_HR
+        self.dil_status = ""
+        self.dil_qty = 0
 
     def __repr__(self):
         return self.code
 
     def export(self):
-        return {"Code": self.code, "Desc": self.desc, "GTIN": self.gtin, "QTY": self.qty, "is_HR": self.is_HR}
+        return {"Code": self.code, "Desc": self.desc, "GTIN": self.gtin, "QTY": self.qty, "is_HR": self.is_HR,
+                "DIL Status": self.dil_status, "DIL Qty": self.dil_qty}
 
     def do_HR_check(self):
         if self.code in user_settings["hr_articles"]:
@@ -209,9 +221,12 @@ def json_load():
                 for sscc in entry.get("SSCCs", []):
                     new_sscc = SSCC(sscc["SSCC"])
                     new_sscc.is_HR = sscc["is_HR"]
+                    new_sscc.dil_status = sscc.get("DIL Status", "")
                     for article in sscc.get("Articles", []):
-                        new_sscc.articles.append(
-                            Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"]))
+                        new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"])
+                        new_article.dil_status = article.get("DIL Status", "")
+                        new_article.dil_qty = article.get("DIL Qty", 0)
+                        new_sscc.articles.append(new_article)
                     new_manifest.ssccs.append(new_sscc)
                 manifests.append(new_manifest)
 
@@ -271,8 +286,26 @@ def generate_pdf(manifest, pdf_location):
 
 
 def generate_DIL(manifest, pdf_location):
-    # TODO DIL GENERATION
-    pass
+    # Create file and header
+    pdf_file = FPDF("P", "mm", "A4")
+    pdf_file.add_page()
+    pdf_file.set_font('Courier', '', 12)
+    pdf_file.set_title(manifest.manifest_id)
+    title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date
+    pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
+
+    # Make the table for the PDF
+    pdf_file.set_font('Courier', '', 9)
+    pdf_file.set_fill_color(220)
+    tb_content = [["Condition", "Description".ljust(30), "Problem Qty"]]
+
+    #for sscc in sorted(manifest.ssccs): TODO GENERATE FILES FROM MANIFEST
+    #    tb_content.append(["", "", ""])
+
+    cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple")).split("\n")
+
+    # Actually save the pdf
+    pdf_file.output(pdf_location, 'F')
 
 
 def format_preview(selected_manifest):

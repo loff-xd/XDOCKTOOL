@@ -26,11 +26,11 @@ class XDTApplication(tk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        self.control_panel = ControlPanel(self)
-        self.control_panel.grid(column=0, row=0, sticky="nsew")
+        self.control_panel = ControlPanel(self, text="Commands")
+        self.control_panel.grid(column=0, row=0, padx=8, sticky="nsew")
 
-        self.preview_frame = PreviewFrame(self)
-        self.preview_frame.grid(column=0, row=1, sticky="nsew", padx=5, pady=5)
+        self.preview_frame = PreviewFrame(self, text="No manifest loaded")
+        self.preview_frame.grid(column=0, row=1, sticky="nsew", padx=8, pady=4)
 
     def interface_update(self, *event):
         global selected_manifest
@@ -47,45 +47,60 @@ class XDTApplication(tk.Frame):
             self.preview_frame.text_preview.insert(tk.INSERT, backend.format_preview(selected_manifest))
             self.preview_frame.text_preview['state'] = 'disabled'
 
-            self.preview_frame.preview_text.configure(text="Manifest " + selected_manifest + " preview:")
+            self.preview_frame.configure(text="Manifest " + selected_manifest + " preview:")
+
+            self.control_panel.button_set_hr["state"] = "normal"
+            self.control_panel.button_gen_dil["state"] = "normal"
+            self.control_panel.button_export_pdf["state"] = "normal"
+
+        else:
+            self.control_panel.button_set_hr["state"] = "disabled"
+            self.control_panel.button_gen_dil["state"] = "disabled"
+            self.control_panel.button_export_pdf["state"] = "disabled"
 
 
 # noinspection PyBroadException
-class ControlPanel(tk.Frame):
+class ControlPanel(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
         self.combo_select_manifest = ttk.Combobox(self)
-        self.combo_select_manifest.grid(column=0, row=0, padx=10, pady=5)
+        self.combo_select_manifest.grid(column=0, row=0, padx=10, pady=4)
         self.combo_select_manifest["values"] = sorted(backend.manifests)
         self.combo_select_manifest.bind("<<ComboboxSelected>>", self.parent.interface_update)
 
         self.button_open = tk.Button(self, text="Import SAP MHTML", command=self.open_mhtml)
-        self.button_open.grid(column=1, row=0, padx=5, pady=5)
+        self.button_open.grid(column=1, row=0, padx=4, pady=4)
 
         self.button_set_hr = tk.Button(self, text="High Risk Manager", command=self.launch_high_risk_manager)
-        self.button_set_hr.grid(column=2, row=0, padx=5, pady=5)
+        self.button_set_hr.grid(column=2, row=0, padx=4, pady=4)
 
         self.button_export_pdf = tk.Button(self, text="Save PDF", command=self.generate_pdf)
-        self.button_export_pdf.grid(column=3, row=0, padx=5, pady=5)
+        self.button_export_pdf.grid(column=3, row=0, padx=4, pady=4)
 
-        self.button_gen_dil = tk.Button(self, text="Generate DIL")  # TODO DIL GENERATION
-        self.button_gen_dil.grid(column=4, row=0, padx=5, pady=5)
+        self.button_gen_dil = tk.Button(self, text="Generate DIL",
+                                        command=self.launch_dil_manager)
+        self.button_gen_dil.grid(column=4, row=0, padx=4, pady=4)
 
         self.var_show_all_articles = tk.IntVar()
         self.check_show_all_articles = tk.Checkbutton(self, text="Show all articles",
                                                       variable=self.var_show_all_articles,
                                                       command=self.parent.interface_update)
-        self.check_show_all_articles.grid(column=10, row=0, padx=5, pady=5)
+        self.check_show_all_articles.grid(column=10, row=0, padx=4, pady=4)
 
         self.var_open_on_save = tk.IntVar()
         self.check_open_on_save = tk.Checkbutton(self, text="Switch to PDF on save", variable=self.var_open_on_save,
                                                  command=self.parent.interface_update)
-        self.check_open_on_save.grid(column=11, row=0, padx=5, pady=10)
+        self.check_open_on_save.grid(column=11, row=0, padx=4, pady=10)
 
         self.button_help = tk.Button(self, text="Help", command=self.get_help)
-        self.button_help.grid(column=20, row=0, padx=5, pady=5, sticky="e")
+        self.button_help.grid(column=20, row=0, padx=8, pady=4, sticky="e")
+        self.columnconfigure(19, weight=1)
+
+        self.button_set_hr["state"] = "disabled"
+        self.button_gen_dil["state"] = "disabled"
+        self.button_export_pdf["state"] = "disabled"
 
         # Set user settings
         if user_settings["show_all_articles"]:
@@ -97,6 +112,7 @@ class ControlPanel(tk.Frame):
             self.check_open_on_save.select()
         else:
             self.check_open_on_save.deselect()
+
 
     def open_mhtml(self):
         try:
@@ -119,42 +135,46 @@ class ControlPanel(tk.Frame):
                 system.exit()
 
     def launch_high_risk_manager(self):
-        if len(selected_manifest) > 0:
-            self.hr_manager = HighRiskManager(self, padx=5, pady=5)
+        self.hr_manager = HighRiskManager(self, padx=4, pady=4)
+
+    def launch_dil_manager(self):
+        if len(backend.user_settings["DIL folder"]) < 1:
+            tkinter.messagebox.showinfo("No DIL folder set!",
+                                        "Please set a folder for X-Dock Manager to output all DIL reports.")
+            backend.user_settings["DIL folder"] = tkinter.filedialog.askdirectory()
+            if not len(backend.user_settings["DIL folder"]) < 1:
+                self.dil_manager = DILManager(self)
         else:
-            tkinter.messagebox.showwarning("Whoa there!",
-                                           "Please select a manifest before launching the high risk manager")
+            self.dil_manager = DILManager(self)
 
     @staticmethod
     def get_help():
         tkinter.messagebox.showinfo("Assistance with X-Dock Manager",
                                     "Hey there,\n\n"
                                     "The full documentation for this software can only be distributed internally. "
-                                    "It may already be in the application folder depending how you received this software.\n\n"
+                                    "It may already be in the application folder "
+                                    "depending how you received this software.\n\n"
                                     "The location of this application is currently:\n"
                                     + str(os.getcwd()) + "\n\n"
-                                    "Any issues/bugs/suggestions can be logged via GitHub:\n"
-                                    "https://github.com/loff-xd/XDOCKTOOL\n\n"
-                                    "Cheers for taking the X-Dock Manager for a spin!")
+                                                         "Any issues/bugs/suggestions can be logged via GitHub:\n"
+                                                         "https://github.com/loff-xd/XDOCKTOOL\n\n"
+                                                         "Cheers for taking the X-Dock Manager for a spin!")
 
 
-class PreviewFrame(tk.Frame):
+class PreviewFrame(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-
-        self.preview_text = tk.Label(self, text="No manifest loaded.")
-        self.preview_text.grid(column=0, row=0, sticky="w", pady=5)
+        self.rowconfigure(0, weight=1)
 
         self.text_preview = tk.Text(self)
-        self.text_preview.grid(column=0, row=1, sticky="nsew")
+        self.text_preview.grid(column=0, row=0, sticky="nsew", padx=(8,0), pady=(8,8))
         self.text_preview['state'] = 'disabled'
 
         self.preview_scroll = tk.Scrollbar(self, command=self.text_preview.yview)
-        self.preview_scroll.grid(column=1, row=1, sticky="ns")
+        self.preview_scroll.grid(column=1, row=0, sticky="ns", padx=(0,8), pady=(8,8))
         self.text_preview['yscrollcommand'] = self.preview_scroll.set
 
 
@@ -248,10 +268,10 @@ class HighRiskManager(tk.Toplevel):
             self.sscc_list = []
             for sscc in manifest.ssccs:
                 if not sscc.is_HR:
-                    self.sscc_list.append(sscc.sscc[:-4] + " " + self.last_four(sscc.sscc))
+                    self.sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
 
             self.listbox_content = tk.StringVar()
-            self.sscc_list = sorted(self.sscc_list, key=self.last_four)
+            self.sscc_list = sorted(self.sscc_list, key=last_four)
             self.sscc_listbox = tk.Listbox(self, height=24, width=35, listvariable=self.listbox_content,
                                            selectmode="multiple")
             self.sscc_listbox.grid(column=0, row=1)
@@ -267,10 +287,10 @@ class HighRiskManager(tk.Toplevel):
             self.hr_sscc_list = []
             for sscc in manifest.ssccs:
                 if sscc.is_HR:
-                    self.hr_sscc_list.append(sscc.sscc[:-4] + " " + self.last_four(sscc.sscc))
+                    self.hr_sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
 
             self.hr_listbox_content = tk.StringVar()
-            self.hr_sscc_list = sorted(self.hr_sscc_list, key=self.last_four)
+            self.hr_sscc_list = sorted(self.hr_sscc_list, key=last_four)
             self.hr_listbox = tk.Listbox(self, height=24, width=35, listvariable=self.hr_listbox_content,
                                          selectmode="multiple")
             self.hr_listbox.grid(column=3, row=1)
@@ -289,16 +309,12 @@ class HighRiskManager(tk.Toplevel):
             self.button_rem_hr = tk.Button(self, text=" << ", command=self.swap_from_hr)
             self.button_rem_hr.grid(column=2, row=1, sticky="s", padx=10, pady=45)
 
-        @staticmethod
-        def last_four(string):
-            return str(string)[-4:]
-
         def swap_to_hr(self):
             for index in self.sscc_listbox.curselection():
                 self.hr_sscc_list.append(self.sscc_listbox.get(index))
                 self.sscc_list.remove(self.sscc_listbox.get(index))
-            self.hr_listbox_content.set(sorted(self.hr_sscc_list, key=self.last_four))
-            self.listbox_content.set(sorted(self.sscc_list, key=self.last_four))
+            self.hr_listbox_content.set(sorted(self.hr_sscc_list, key=last_four))
+            self.listbox_content.set(sorted(self.sscc_list, key=last_four))
             self.hr_listbox.selection_clear(0, "end")
             self.sscc_listbox.selection_clear(0, "end")
 
@@ -306,8 +322,8 @@ class HighRiskManager(tk.Toplevel):
             for index in self.hr_listbox.curselection():
                 self.sscc_list.append(self.hr_listbox.get(index))
                 self.hr_sscc_list.remove(self.hr_listbox.get(index))
-            self.hr_listbox_content.set(sorted(self.hr_sscc_list, key=self.last_four))
-            self.listbox_content.set(sorted(self.sscc_list, key=self.last_four))
+            self.hr_listbox_content.set(sorted(self.hr_sscc_list, key=last_four))
+            self.listbox_content.set(sorted(self.sscc_list, key=last_four))
             self.hr_listbox.selection_clear(0, "end")
             self.sscc_listbox.selection_clear(0, "end")
 
@@ -340,9 +356,9 @@ class HighRiskManager(tk.Toplevel):
             self.article_search_text = tk.StringVar()
             self.article_search_text.trace_add("write", self.search)
             self.article_search_box = tk.Entry(self, justify=tk.LEFT, textvariable=self.article_search_text)
-            self.article_search_box.grid(column=0, row=1, sticky="se", pady=5, padx=10)
+            self.article_search_box.grid(column=0, row=1, sticky="se", pady=4, padx=10)
             self.article_search_box.bind("<Return>", self.search)
-            tk.Label(self, text="Filter:").grid(column=0, row=1, sticky="sw", pady=5, padx=10)
+            tk.Label(self, text="Filter:").grid(column=0, row=1, sticky="sw", pady=4, padx=10)
 
             # HR side
             self.hr_article_list = user_settings["hr_articles"]
@@ -404,7 +420,7 @@ class HighRiskManager(tk.Toplevel):
                     for article in sscc.articles:
                         article.is_HR = False
                         self.article_list.append(article.code)
-            self.article_list = list(dict.fromkeys(self.article_list))  # REMOVE DUPLICATES
+            self.article_list = list(dict.fromkeys(self.article_list))  # Remove duplicates
             self.article_listbox_content.set(sorted(self.article_list))
             self.hr_listbox_content.set([])
 
@@ -443,10 +459,10 @@ class HighRiskManager(tk.Toplevel):
             self.listbox_scroll = tk.Scrollbar(self, command=self.article_listbox.yview)
             self.listbox_scroll.grid(column=2, row=1, sticky="nse")
             self.article_listbox['yscrollcommand'] = self.listbox_scroll.set
-            tk.Label(self, text="Article Suggestions:").grid(column=1, row=0, sticky="w", pady=5)
+            tk.Label(self, text="Article Suggestions:").grid(column=1, row=0, sticky="w", pady=4)
 
             self.button_add_suggestions = tk.Button(self, text="Add suggestions", command=self.add_suggestions)
-            self.button_add_suggestions.grid(column=1, row=2, pady=5)
+            self.button_add_suggestions.grid(column=1, row=2, pady=4)
 
             self.columnconfigure(1, weight=1)
             self.columnconfigure(0, weight=10)
@@ -460,7 +476,8 @@ class HighRiskManager(tk.Toplevel):
                     len(backend.manifests)) + " manifests stored."
 
             tk.Label(self,
-                     text="These articles have always been in\nhigh-risk SSCCs but the articles were\nnever flagged as high risk themselves\n\n"
+                     text="These articles have always been in\nhigh-risk SSCCs but the articles were\n"
+                          "never flagged as high risk themselves\n\n"
                           "Here you can add them to automatically flag\nthe carton containing them as high-risk\n\n"
                           + suggestions_tip_text).grid(column=0, row=1)
 
@@ -473,6 +490,111 @@ class HighRiskManager(tk.Toplevel):
             main_window.control_panel.hr_manager.destroy()
             main_window.control_panel.launch_high_risk_manager()
 
+
+class DILManager(tk.Toplevel):
+    def __init__(self, parent, *args, **kwargs):
+        tk.Toplevel.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        self.title("Generate DIL Report")
+        set_centre_geometry(self, 960, 640)
+        root.grab_release()
+        self.grab_set()
+        self.focus()
+        self.resizable(False, False)
+
+        self.rowconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
+        self.target_manifest = backend.get_manifest_from_id(selected_manifest)
+
+        self.control_panel = self.SettingsFrame(self)
+        self.control_panel.grid(column=0, row=0, padx=10, pady=8, sticky="ew", columnspan=2)
+
+        self.sscc_frame = self.SSCCFrame(self)
+        self.sscc_frame.grid(column=0, row=1, padx=8, pady=(0,8), sticky="nsew")
+
+        self.article_frame = self.ArticleFrame(self)
+        self.article_frame.grid(column=1, row=1, padx=8, pady=(0,8), sticky="nsew")
+
+    def dil_manager_update(self, *args):
+        if len(self.sscc_frame.sscc_listbox.curselection()) > 0:
+            selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ", "")
+            target_sscc = self.target_manifest.get_sscc(selected_sscc)
+            if target_sscc is not None:
+                self.article_list = []
+                for article in target_sscc.articles:
+                    self.article_list.append(article.code)
+                self.article_frame.listbox_content.set(sorted(self.article_list))
+
+    def change_dil_folder(self):
+        request = tkinter.filedialog.askdirectory(parent=self)
+        if not len(request) < 1:
+            backend.user_settings["DIL folder"] = request
+            self.control_panel.label_dil_dir.config(text=("DIL Location: " + str(backend.user_settings["DIL folder"])))
+
+    def output_dils(self):
+        pass # TODO DIL OUT
+
+    class SettingsFrame(tk.LabelFrame):
+        def __init__(self, parent, *args, **kwargs):
+            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+            self["text"] = "Settings"
+            self.columnconfigure(9, weight=1)
+
+            tk.Label(self, text=("Manifest: " + str(backend.get_manifest_from_id(selected_manifest))))\
+                .grid(column=0, row=0, padx=10, pady=4)
+
+            self.label_dil_dir = tk.Label(self, text=("DIL Location: " + str(backend.user_settings["DIL folder"])))
+            self.label_dil_dir.grid(column=1, row=0, padx=10, pady=4)
+
+            self.button_dil_folder = tk.Button(self, text="Change DIL Folder", command=parent.change_dil_folder)
+            self.button_dil_folder.grid(column=10, row=0, padx=4, pady=4, sticky="e")
+
+            self.button_output_dil = tk.Button(self, text="Generate", command=parent.output_dils)
+            self.button_output_dil.grid(column=11, row=0, padx=4, pady=4, sticky="e")
+
+    class SSCCFrame(tk.LabelFrame):
+        def __init__(self, parent, *args, **kwargs):
+            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+            self["text"] = "SSCCs"
+
+            self.sscc_list = []
+            for sscc in parent.target_manifest.ssccs:
+                    self.sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
+
+            self.listbox_content = tk.StringVar()
+            self.sscc_list = sorted(self.sscc_list, key=last_four)
+            self.sscc_listbox = tk.Listbox(self, width=32, height=32, listvariable=self.listbox_content,
+                                           selectmode="single")
+            self.sscc_listbox.grid(column=0, row=1, padx=4, pady=4, rowspan=10)
+            self.sscc_listbox.configure(justify=tk.RIGHT)
+            self.listbox_content.set(self.sscc_list)
+
+            self.listbox_scroll = tk.Scrollbar(self, command=self.sscc_listbox.yview)
+            self.listbox_scroll.grid(column=1, row=1, sticky="ns", rowspan=10)
+            self.sscc_listbox['yscrollcommand'] = self.listbox_scroll.set
+
+            self.sscc_listbox.bind("<<ListboxSelect>>", parent.dil_manager_update)
+
+    class ArticleFrame(tk.LabelFrame):
+        def __init__(self, parent, *args, **kwargs):
+            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+            self["text"] = "Articles"
+
+            self.listbox_content = tk.StringVar()
+            self.article_listbox = tk.Listbox(self, width=32, height=32, listvariable=self.listbox_content,
+                                           selectmode="single")
+            self.article_listbox.grid(column=0, row=1, padx=4, pady=4, rowspan=10)
+            self.article_listbox.configure(justify=tk.RIGHT)
+
+            self.listbox_scroll = tk.Scrollbar(self, command=self.article_listbox.yview)
+            self.listbox_scroll.grid(column=1, row=1, sticky="ns", rowspan=10)
+            self.article_listbox['yscrollcommand'] = self.listbox_scroll.set
 
 # noinspection PyBroadException
 def do_argv_check():
@@ -492,6 +614,8 @@ def exit_app():
     root.destroy()
     system.exit()
 
+def last_four(string):
+        return str(string)[-4:]
 
 def set_centre_geometry(target, w, h):
     ws = target.winfo_screenwidth()
