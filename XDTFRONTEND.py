@@ -517,6 +517,8 @@ class DILManager(tk.Toplevel):
 
         self.article_frame = self.ArticleFrame(self)
         self.article_frame.grid(column=1, row=1, padx=8, pady=(0,8), sticky="nsew")
+        self.article_frame.set_state("disabled")
+
 
     def dil_manager_update(self, *args):
         if len(self.sscc_frame.sscc_listbox.curselection()) > 0:
@@ -527,6 +529,21 @@ class DILManager(tk.Toplevel):
                 for article in target_sscc.articles:
                     self.article_list.append(article.code)
                 self.article_frame.listbox_content.set(sorted(self.article_list))
+            self.article_frame.set_state()
+
+            if len(self.article_frame.article_listbox.curselection()) > 0:
+                selected_article = target_sscc.get_article(self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()))
+                self.article_frame.desired_qty.configure(text=("Desired Qty: " + str(selected_article.qty)))
+
+            if self.sscc_frame.rb_variable.get() == "normal":
+                self.article_frame.set_state()
+            else:
+                self.article_frame.set_state("disabled")
+
+        else:
+            self.article_frame.set_state("disabled")
+
+        self.control_panel.update_dil_count()
 
     def change_dil_folder(self):
         request = tkinter.filedialog.askdirectory(parent=self)
@@ -534,8 +551,55 @@ class DILManager(tk.Toplevel):
             backend.user_settings["DIL folder"] = request
             self.control_panel.label_dil_dir.config(text=("DIL Location: " + str(backend.user_settings["DIL folder"])))
 
+    def save(self):
+        if len(self.sscc_frame.sscc_listbox.curselection()) > 0:
+            selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ", "")
+
+            if len(self.article_frame.article_listbox.curselection()) > 0:
+                selected_article = self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection())
+
+            for sscc in backend.get_manifest_from_id(selected_manifest).ssccs:
+                if sscc.sscc == selected_sscc:
+                    if self.sscc_frame.rb_variable.get() != "normal":
+                        sscc.dil_status = self.sscc_frame.rb_variable.get()
+                        sscc.dil_comment = str(self.sscc_frame.text_comment.get(1.0, "end-1c"))
+                    else:
+                        if len(self.article_frame.article_listbox.curselection()) > 0:
+                            for article in sscc.articles:
+                                if article.code == selected_article:
+                                    if self.article_frame.rb_variable.get() != "normal":
+                                        article.dil_status = self.article_frame.rb_variable.get()
+                                        article.dil_qty = int(self.article_frame.sb_qty.get())
+                                        article.dil_comment = str(self.article_frame.text_comment.get(1.0, "end-1c"))
+
+            self.article_frame.rb_normal.select()
+            self.article_frame.sb_qty.delete(0, tk.END)
+            self.article_frame.sb_qty.insert(0, "0")
+            self.article_frame.text_comment.delete(1.0, tk.END)
+            self.sscc_frame.rb_normal.select()
+            self.sscc_frame.text_comment.delete(1.0, tk.END)
+
+            self.dil_manager_update()
+
     def output_dils(self):
-        pass # TODO DIL OUT
+        backend.generate_DIL(selected_manifest)
+        tkinter.messagebox.showinfo("Success", "DILs successfully generated!")
+        self.destroy()
+
+    def reset_all(self):
+        if tkinter.messagebox.askyesno("Hol up!",
+                                       "This will clear all delivery issues for this manifest!\n"
+                                       "Are you sure you want to do this?", master=self):
+            for sscc in self.target_manifest.ssccs:
+                sscc.dil_status = ""
+                sscc.dil_comment = ""
+                for article in sscc.articles:
+                    article.dil_status = ""
+                    article.dil_comment = ""
+                    article.dil_qty = 0
+            self.article_frame.article_listbox.selection_clear(0, tk.END)
+            self.sscc_frame.sscc_listbox.selection_clear(0, tk.END)
+            self.dil_manager_update()
 
     class SettingsFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -550,11 +614,39 @@ class DILManager(tk.Toplevel):
             self.label_dil_dir = tk.Label(self, text=("DIL Location: " + str(backend.user_settings["DIL folder"])))
             self.label_dil_dir.grid(column=1, row=0, padx=10, pady=4)
 
+            self.label_dil_count = tk.Label(self, text=("DILs to generate: "))
+            self.label_dil_count.grid(column=2, row=0, padx=10, pady=4)
+
+            self.button_reset = tk.Button(self, text="Reset", command=parent.reset_all)
+            self.button_reset.grid(column=10, row=0, padx=4, pady=4, sticky="e")
+            self.button_reset["state"] = "disabled"
+
             self.button_dil_folder = tk.Button(self, text="Change DIL Folder", command=parent.change_dil_folder)
-            self.button_dil_folder.grid(column=10, row=0, padx=4, pady=4, sticky="e")
+            self.button_dil_folder.grid(column=11, row=0, padx=4, pady=4, sticky="e")
 
             self.button_output_dil = tk.Button(self, text="Generate", command=parent.output_dils)
-            self.button_output_dil.grid(column=11, row=0, padx=4, pady=4, sticky="e")
+            self.button_output_dil.grid(column=12, row=0, padx=4, pady=4, sticky="e")
+            self.button_output_dil["state"] = "disabled"
+
+            self.update_dil_count()
+
+        def update_dil_count(self):
+            self.dil_count = 0
+            for sscc in backend.get_manifest_from_id(selected_manifest).ssccs:
+                if sscc.dil_status == "":
+                    for article in sscc.articles:
+                        if article.dil_status != "":
+                            self.dil_count += 1
+                            break
+                else:
+                    self.dil_count += 1
+            self.label_dil_count.config(text=("DILs to generate: " + str(self.dil_count)))
+            if self.dil_count > 0:
+                self.button_reset["state"] = "normal"
+                self.button_output_dil["state"] = "normal"
+            else:
+                self.button_reset["state"] = "disabled"
+                self.button_output_dil["state"] = "disabled"
 
     class SSCCFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -563,22 +655,37 @@ class DILManager(tk.Toplevel):
             self["text"] = "SSCCs"
 
             self.sscc_list = []
-            for sscc in parent.target_manifest.ssccs:
+            for sscc in backend.get_manifest_from_id(selected_manifest).ssccs:
                     self.sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
 
             self.listbox_content = tk.StringVar()
             self.sscc_list = sorted(self.sscc_list, key=last_four)
             self.sscc_listbox = tk.Listbox(self, width=32, height=32, listvariable=self.listbox_content,
-                                           selectmode="single")
-            self.sscc_listbox.grid(column=0, row=1, padx=4, pady=4, rowspan=10)
+                                           selectmode="single", exportselection=False)
+            self.sscc_listbox.grid(column=0, row=0, padx=4, pady=4, rowspan=7)
             self.sscc_listbox.configure(justify=tk.RIGHT)
             self.listbox_content.set(self.sscc_list)
-
             self.listbox_scroll = tk.Scrollbar(self, command=self.sscc_listbox.yview)
-            self.listbox_scroll.grid(column=1, row=1, sticky="ns", rowspan=10)
+            self.listbox_scroll.grid(column=1, row=0, sticky="ns", rowspan=7)
             self.sscc_listbox['yscrollcommand'] = self.listbox_scroll.set
-
             self.sscc_listbox.bind("<<ListboxSelect>>", parent.dil_manager_update)
+
+            self.rb_variable = tk.StringVar()
+            self.rb_normal = tk.Radiobutton(self, text="Normal", variable=self.rb_variable, value="normal", command=parent.dil_manager_update)
+            self.rb_normal.grid(column=2, row=0, padx=8, pady=4, sticky="w")
+            self.rb_missing = tk.Radiobutton(self, text="Missing", variable=self.rb_variable, value="missing", command=parent.dil_manager_update)
+            self.rb_missing.grid(column=2, row=1, padx=8, pady=4, sticky="w")
+            self.rb_normal.select()
+
+            tk.Label(self, text="Comments:").grid(column=2, row=3, padx=8, pady=4, sticky="sw")
+
+            self.text_comment = tk.Text(self, width=26, height=12)
+            self.text_comment.grid(column=2, row=4, padx=8, pady=4, sticky="nw")
+
+            self.rowconfigure(5, weight=2)
+
+            self.button_validate = tk.Button(self, text="Save", command=parent.save)
+            self.button_validate.grid(column=2, row=6, padx=4, pady=4, sticky="se")
 
     class ArticleFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -588,13 +695,55 @@ class DILManager(tk.Toplevel):
 
             self.listbox_content = tk.StringVar()
             self.article_listbox = tk.Listbox(self, width=32, height=32, listvariable=self.listbox_content,
-                                           selectmode="single")
-            self.article_listbox.grid(column=0, row=1, padx=4, pady=4, rowspan=10)
+                                           selectmode="single", exportselection=False)
+            self.article_listbox.grid(column=0, row=0, padx=4, pady=4, rowspan=10)
             self.article_listbox.configure(justify=tk.RIGHT)
-
             self.listbox_scroll = tk.Scrollbar(self, command=self.article_listbox.yview)
-            self.listbox_scroll.grid(column=1, row=1, sticky="ns", rowspan=10)
+            self.listbox_scroll.grid(column=1, row=0, sticky="ns", rowspan=10)
             self.article_listbox['yscrollcommand'] = self.listbox_scroll.set
+            self.article_listbox.bind("<<ListboxSelect>>", parent.dil_manager_update)
+
+            self.rb_variable = tk.StringVar()
+            self.rb_normal = tk.Radiobutton(self, text="Normal", variable=self.rb_variable, value="normal")
+            self.rb_normal.grid(column=2, row=0, padx=8, pady=4, sticky="w")
+            self.rb_undersupply = tk.Radiobutton(self, text="Undersupply", variable=self.rb_variable, value="under")
+            self.rb_undersupply.grid(column=2, row=1, padx=8, pady=4, sticky="w")
+            self.rb_oversupply = tk.Radiobutton(self, text="Oversupply", variable=self.rb_variable,
+                                                 value="over")
+            self.rb_oversupply.grid(column=2, row=2, padx=8, pady=4, sticky="w")
+            self.rb_damaged = tk.Radiobutton(self, text="Damaged", variable=self.rb_variable,
+                                                value="damaged")
+            self.rb_damaged.grid(column=2, row=3, padx=8, pady=4, sticky="w")
+            self.rb_normal.select()
+
+            self.desired_qty = tk.Label(self, text="Desired Qty:")
+            self.desired_qty.grid(column=2, row=4, padx=8, pady=4, sticky="sw")
+
+            tk.Label(self, text="Problem Qty:").grid(column=2, row=5, padx=8, pady=4, sticky="sw")
+
+            self.sb_qty = tk.Spinbox(self, from_=0, to=9999)
+            self.sb_qty.grid(column=2, row=6, padx=8, pady=4, sticky="w")
+
+            tk.Label(self, text="Comments:").grid(column=2, row=7, padx=8, pady=4, sticky="sw")
+
+            self.text_comment = tk.Text(self, width=26, height=12)
+            self.text_comment.grid(column=2, row=8, padx=8, pady=4, sticky="nw")
+
+            self.rowconfigure(9, weight=2)
+
+            self.button_validate = tk.Button(self, text="Save", command=parent.save)
+            self.button_validate.grid(column=2, row=9, padx=8, pady=4, sticky="se")
+
+        def set_state(self, state="normal"):
+            self.article_listbox["state"] = state
+            self.rb_normal["state"] = state
+            self.rb_undersupply["state"] = state
+            self.rb_oversupply["state"] = state
+            self.rb_damaged["state"] = state
+            self.button_validate["state"] = state
+            self.text_comment["state"] = state
+            self.sb_qty["state"] = state
+
 
 # noinspection PyBroadException
 def do_argv_check():
