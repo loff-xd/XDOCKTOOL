@@ -11,7 +11,6 @@ import os
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
-import textwrap
 
 manifests = []
 xdt_userdata_file = "xdt_userdata.json"
@@ -60,6 +59,7 @@ class SSCC:
         self.short_sscc = sscc[-4:]
         self.is_HR = False
         self.dil_status = ""
+        self.dil_comment = ""
 
     def __eq__(self, other):
         return self.short_sscc == other.short_sscc
@@ -74,7 +74,7 @@ class SSCC:
         article_list = []
         for article in self.articles:
             article_list.append(article.export())
-        return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "Articles": article_list}
+        return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "DIL Comment": self.dil_comment, "Articles": article_list}
 
     def hr_repr(self):
         if self.is_HR:
@@ -121,6 +121,12 @@ class SSCC:
             else:
                 return self.articles[0].qty
 
+    def get_article(self, article_code):
+        for article in self.articles:
+            if article.code == article_code:
+                return article
+        return None
+
 
 class Article:
     def __init__(self, code, desc, gtin, qty, is_HR):
@@ -131,13 +137,14 @@ class Article:
         self.is_HR = is_HR
         self.dil_status = ""
         self.dil_qty = 0
+        self.dil_comment = ""
 
     def __repr__(self):
         return self.code
 
     def export(self):
         return {"Code": self.code, "Desc": self.desc, "GTIN": self.gtin, "QTY": self.qty, "is_HR": self.is_HR,
-                "DIL Status": self.dil_status, "DIL Qty": self.dil_qty}
+                "DIL Status": self.dil_status, "DIL Qty": self.dil_qty, "DIL Comment": self.dil_comment}
 
     def do_HR_check(self):
         if self.code in user_settings["hr_articles"]:
@@ -222,10 +229,12 @@ def json_load():
                     new_sscc = SSCC(sscc["SSCC"])
                     new_sscc.is_HR = sscc["is_HR"]
                     new_sscc.dil_status = sscc.get("DIL Status", "")
+                    new_sscc.dil_comment = sscc.get("DIL Comment", "")
                     for article in sscc.get("Articles", []):
                         new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"])
                         new_article.dil_status = article.get("DIL Status", "")
                         new_article.dil_qty = article.get("DIL Qty", 0)
+                        new_article.dil_comment = article.get("DIL Comment", "")
                         new_sscc.articles.append(new_article)
                     new_manifest.ssccs.append(new_sscc)
                 manifests.append(new_manifest)
@@ -285,27 +294,76 @@ def generate_pdf(manifest, pdf_location):
     os.startfile(pdf_location)
 
 
-def generate_DIL(manifest, pdf_location):
-    # Create file and header
-    pdf_file = FPDF("P", "mm", "A4")
-    pdf_file.add_page()
-    pdf_file.set_font('Courier', '', 12)
-    pdf_file.set_title(manifest.manifest_id)
-    title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date
-    pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
+def generate_DIL(manifest_id):
+    manifest = get_manifest_from_id(manifest_id)
 
-    # Make the table for the PDF
-    pdf_file.set_font('Courier', '', 9)
-    pdf_file.set_fill_color(220)
-    tb_content = [["Condition", "Description".ljust(30), "Problem Qty"]]
+    for sscc in manifest.ssccs:
+        filepath = os.path.join(user_settings.get("DIL folder"), str(manifest_id))
+        filename = os.path.join(filepath, str(sscc.sscc) + ".pdf")
 
-    #for sscc in sorted(manifest.ssccs): TODO GENERATE FILES FROM MANIFEST
-    #    tb_content.append(["", "", ""])
+        if sscc.dil_status == "":
+            create_dil = False
+            for article in sscc.articles:
+                if article.dil_status != "":
+                    create_dil = True
 
-    cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple")).split("\n")
+            if create_dil:  # ARTICLE ISSUE
+                # Create file and header
+                pdf_file = FPDF("P", "mm", "A4")
+                pdf_file.add_page()
+                pdf_file.set_font('Courier', '', 12)
+                pdf_file.set_title(manifest.manifest_id)
+                title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date + \
+                             "\nSSCC:" + sscc.sscc
+                pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
 
-    # Actually save the pdf
-    pdf_file.output(pdf_location, 'F')
+                # Make the table for the PDF
+                pdf_file.set_font('Courier', '', 9)
+                pdf_file.set_fill_color(220)
+                tb_content = [["Article", "Qty", "Condition", "Problem Qty", "Actual Qty", "Comments"]]
+
+                for article in sscc.articles:
+                    tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty, (int(article.qty)-int(article.dil_qty)), article.dil_comment])
+
+                cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple"))
+                pdf_file.multi_cell(w=0, h=5, txt=cell_text, align="L", border=1)
+
+                # Actually save the pdf
+                if not os.path.isdir(filepath):
+                    os.mkdir(filepath)
+                pdf_file.output(filename, 'F')
+
+        else:  # SSCC ISSUE
+            # Create file and header
+            pdf_file = FPDF("P", "mm", "A4")
+            pdf_file.add_page()
+            pdf_file.set_font('Courier', '', 12)
+            pdf_file.set_title(manifest.manifest_id)
+            title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date + \
+                         "\nSSCC:" + sscc.sscc + " - Issue: " + sscc.dil_status
+            pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
+
+            if len(sscc.dil_comment) > 0:
+                pdf_file.set_font('Courier', '', 9)
+                pdf_file.multi_cell(w=0, h=8, txt=("Comments:\n" + sscc.dil_comment), align="L")
+
+            # Make the table for the PDF
+            pdf_file.set_font('Courier', '', 9)
+            pdf_file.set_fill_color(220)
+
+            tb_content = [["Article", "Description".ljust(30), "Qty"]]
+
+            for article in sscc.articles:
+                tb_content.append(
+                    [article.code, article.desc, article.qty])
+
+            cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple"))
+            pdf_file.multi_cell(w=0, h=5, txt=cell_text, align="L", border=1)
+
+            # Actually save the pdf
+            if not os.path.isdir(filepath):
+                os.mkdir(filepath)
+            pdf_file.output(filename, 'F')
 
 
 def format_preview(selected_manifest):
