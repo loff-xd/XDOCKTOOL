@@ -15,7 +15,7 @@ selected_manifest = ""
 backend.json_load()
 user_settings = backend.user_settings
 
-application_version = "1.1.1"
+application_version = "1.1.1.1"
 
 
 class XDTApplication(tk.Frame):
