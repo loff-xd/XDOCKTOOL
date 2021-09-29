@@ -7,6 +7,7 @@ import datetime
 import email
 import json
 import os
+import textwrap
 
 from bs4 import BeautifulSoup
 from fpdf import FPDF
@@ -126,6 +127,14 @@ class SSCC:
             if article.code == article_code:
                 return article
         return None
+
+    def check_dil(self):
+        if self.dil_status != "":
+            return True
+        for article in self.articles:
+            if article.dil_status != "":
+                return True
+        return False
 
 
 class Article:
@@ -313,17 +322,22 @@ def generate_DIL(manifest_id):
                 pdf_file.add_page()
                 pdf_file.set_font('Courier', '', 12)
                 pdf_file.set_title(manifest.manifest_id)
-                title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date + \
-                             "\nSSCC:" + sscc.sscc
+                title_text = "DIL REPORT - [Manifest: " + manifest.manifest_id + "] - [Date Imported: " + manifest.import_date + \
+                             "]\n[SSCC: " + sscc.sscc + "] - [Issue: see article list]"
                 pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
 
                 # Make the table for the PDF
                 pdf_file.set_font('Courier', '', 9)
                 pdf_file.set_fill_color(220)
-                tb_content = [["Article", "Qty", "Condition", "Problem Qty", "Actual Qty", "Comments"]]
+                tb_content = [["Article", "Qty", "Condition", "Problem Qty", "Received Qty", "Comments"]]
 
                 for article in sscc.articles:
-                    tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty, (int(article.qty)-int(article.dil_qty)), article.dil_comment])
+                    if article.dil_status != "damaged":
+                        tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
+                                           (int(article.qty)-int(article.dil_qty)), textwrap.fill(article.dil_comment, 30)])
+                    else:
+                        tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
+                                           article.qty, textwrap.fill(article.dil_comment, 30)])
 
                 cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple"))
                 pdf_file.multi_cell(w=0, h=5, txt=cell_text, align="L", border=1)
@@ -339,8 +353,8 @@ def generate_DIL(manifest_id):
             pdf_file.add_page()
             pdf_file.set_font('Courier', '', 12)
             pdf_file.set_title(manifest.manifest_id)
-            title_text = "DIL REPORT - Manifest: " + manifest.manifest_id + " - Created: " + manifest.import_date + \
-                         "\nSSCC:" + sscc.sscc + " - Issue: " + sscc.dil_status
+            title_text = "DIL REPORT - [Manifest: " + manifest.manifest_id + "] - [Date Imported: " + manifest.import_date + \
+                         "]\n[SSCC: " + sscc.sscc + "] - [Issue: " + sscc.dil_status + "]"
             pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
 
             if len(sscc.dil_comment) > 0:
