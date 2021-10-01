@@ -255,7 +255,7 @@ class HighRiskManager(tk.Toplevel):
     def reset_hr_manager(self):
         if tkinter.messagebox.askyesno("Hol up!",
                                        "This will clear all user-set articles to be automatically marked as high risk! "
-                                       "Are you sure you want to do this?", master=self):
+                                       "Are you sure you want to do this?", parent=self):
             user_settings["hr_articles"] = []
             self.article_tab.reset()
 
@@ -524,43 +524,32 @@ class DILManager(tk.Toplevel):
             backend.user_settings["DIL folder"] = request
             self.control_panel.label_dil_dir.config(text=("DIL Location: " + str(backend.user_settings["DIL folder"])))
 
-    def dil_manager_refresh(self, *args):  # CALL ON ANY LIST CHANGE
+    def dil_mgr_sscc_update(self, *args):  # CALL ON SSCC LIST CHANGE
         if len(self.sscc_frame.sscc_listbox.curselection()) > 0:  # CHECK IF AN SSCC IS SELECTED
 
             self.sscc_frame.set_state()  # ENABLE SSCC SETTINGS
 
             # POPULATE AND ENABLE ARTICLE LIST IF SSCC PICKED + SET SSCC SETTINGS
-            selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection()))\
-                .replace(" ", "").replace("*", "")
-            target_sscc = self.target_manifest.get_sscc(selected_sscc) # GET SSCC OBJ FROM MANIFEST
+            target_sscc = self.target_manifest.get_sscc((self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection()))\
+                .replace(" ", "").replace("*", "")) # GET SSCC OBJ FROM MANIFEST
             if target_sscc is not None:
                 if target_sscc.dil_status == "missing":
-                    print("miss")
                     self.sscc_frame.rb_missing.select()
+                    self.sscc_frame.text_comment.delete(1.0, tk.END)
+                    self.sscc_frame.text_comment.insert(1.0, target_sscc.dil_comment)
                 else:
-                    print("norm")
                     self.sscc_frame.rb_normal.select()
+                    self.sscc_frame.text_comment.delete(1.0, tk.END)
 
-                self.article_list = []
-                for article in target_sscc.articles:
-                    if article.dil_status == "":
-                        self.article_list.append(article.code)
-                    else:
-                        self.article_list.append("*" + article.code)
-                self.article_frame.listbox_content.set(sorted(self.article_list))
-                self.article_frame.set_list_state()
-                self.article_frame.article_listbox.activate(0) # SELECT FIRST ITEM IN LIST
-
-            # POPULATE AND ENABLE ARTICLE SETTINGS IF ARTICLE PICKED
-            if len(self.article_frame.article_listbox.curselection()) > 0:
-                self.article_frame.set_state()
-                selected_article = target_sscc.get_article(
-                    self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection())\
-                        .replace("*", ""))
-                # TODO SET ARTICLE SETTINGS
-                self.article_frame.desired_qty.configure(text=("Desired Qty: " + str(selected_article.qty)))
-            else:
-                self.article_frame.set_state("disabled")
+            # POPULATE AND ENABLE ARTICLE SETTINGS
+            self.article_list = []
+            for article in target_sscc.articles:
+                if article.dil_status == "":
+                    self.article_list.append(article.code)
+                else:
+                    self.article_list.append("*" + article.code)
+            self.article_frame.listbox_content.set(sorted(self.article_list, key=lambda a: a.replace("*", "")))
+            self.article_frame.set_list_state()
 
             if self.sscc_frame.rb_variable.get() == "normal": # DISABLE ARTICLE SIDE IF NORMAL ISN'T PICKED
                 self.article_frame.set_list_state()
@@ -570,6 +559,38 @@ class DILManager(tk.Toplevel):
         else:
             self.article_frame.set_list_state("disabled")  # DISABLE ARTICLE SIDE
             self.sscc_frame.set_state("disabled")  # DISABLE SSCC SETTINGS
+
+        self.control_panel.update_dil_count()
+
+    def dil_mgr_article_update(self, *args): # CALL ON ARTICLE LIST CHANGE
+        self.article_frame.rb_normal.select()
+        self.article_frame.sb_qty.delete(0, tk.END)
+        self.article_frame.text_comment.delete(1.0, tk.END)
+        self.article_frame.desired_qty.configure(text=("Desired Qty: 0"))
+
+        if len(self.article_frame.article_listbox.curselection()) > 0:
+            target_sscc = self.target_manifest.get_sscc(
+                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
+                .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
+
+            selected_article = target_sscc.get_article(
+                self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()) \
+                    .replace("*", ""))
+
+            self.article_frame.set_state()
+            self.article_frame.sb_qty.insert(0, selected_article.dil_qty)
+            self.article_frame.text_comment.insert(1.0, selected_article.dil_comment)
+            if selected_article.dil_status == "under":
+                self.article_frame.rb_undersupply.select()
+            elif selected_article.dil_status == "over":
+                self.article_frame.rb_oversupply.select()
+            elif selected_article.dil_status == "damaged":
+                self.article_frame.rb_damaged.select()
+
+
+            self.article_frame.desired_qty.configure(text=("Desired Qty: " + str(selected_article.qty)))
+        else:
+            self.article_frame.set_state("disabled")
 
         self.control_panel.update_dil_count()
 
@@ -605,14 +626,25 @@ class DILManager(tk.Toplevel):
                             sscc.dil_status = ""
                             sscc.dil_comment = ""
 
-            # WRITE A NEW SSCC LIST
-            sscc_list = []
-            for sscc in backend.get_manifest_from_id(selected_manifest).ssccs:
-                if not sscc.check_dil():
-                    sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
+            self.article_frame.set_list_state()
+
+            # WRITE NEW ARTICLE LIST
+            self.article_list = []
+            for article in backend.get_manifest_from_id(selected_manifest).get_sscc(selected_sscc).articles:
+                if article.dil_status == "":
+                    self.article_list.append(article.code)
                 else:
-                    sscc_list.append("*" + sscc.sscc[:-4] + " " + last_four(sscc.sscc))
-            self.sscc_frame.listbox_content.set(sorted(sscc_list, key=last_four))
+                    self.article_list.append("*" + article.code)
+            self.article_frame.listbox_content.set(sorted(self.article_list, key=lambda a: a.replace("*", "")))
+
+        # WRITE A NEW SSCC LIST
+        sscc_list = []
+        for sscc in backend.get_manifest_from_id(selected_manifest).ssccs:
+            if not sscc.check_dil():
+                sscc_list.append(sscc.sscc[:-4] + " " + last_four(sscc.sscc))
+            else:
+                sscc_list.append("*" + sscc.sscc[:-4] + " " + last_four(sscc.sscc))
+        self.sscc_frame.listbox_content.set(sorted(sscc_list, key=last_four))
 
     def output_dils(self):
         self.write_to_manifest()
@@ -622,12 +654,12 @@ class DILManager(tk.Toplevel):
             self.destroy()
         else:
             tkinter.messagebox.showerror("Can i get uhhhh...",
-                                        "There are no DILs to generate!!", master=self)
+                                        "There are no DILs to generate!", parent=self)
 
     def reset_all(self):
         if tkinter.messagebox.askyesno("Hol up!",
                                        "This will clear all delivery issues for this manifest!\n"
-                                       "Are you sure you want to do this?", master=self):
+                                       "Are you sure you want to do this?", parent=self):
             for sscc in self.target_manifest.ssccs:
                 sscc.dil_status = ""
                 sscc.dil_comment = ""
@@ -637,7 +669,10 @@ class DILManager(tk.Toplevel):
                     article.dil_qty = 0
             self.article_frame.article_listbox.selection_clear(0, tk.END)
             self.sscc_frame.sscc_listbox.selection_clear(0, tk.END)
-            self.dil_manager_refresh()
+
+            self.dil_mgr_sscc_update()
+            self.dil_mgr_article_update()
+            self.write_to_manifest()
 
     class SettingsFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -733,15 +768,11 @@ class DILManager(tk.Toplevel):
             self.text_comment["state"] = state
 
         def sscc_list_callback(self, *args): # ON LISTBOX SELECTION
-            self.parent.write_to_manifest()
-            self.rb_normal.select()
-            self.text_comment.delete(1.0, tk.END)
-            self.parent.article_frame.article_list_callback()
-            self.parent.dil_manager_refresh()
+            self.parent.dil_mgr_sscc_update()
 
         def rb_callback(self, *args):
             self.parent.write_to_manifest()
-            self.parent.dil_manager_refresh()
+            self.parent.dil_mgr_sscc_update()
 
     class ArticleFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -808,17 +839,10 @@ class DILManager(tk.Toplevel):
             self.sb_qty["state"] = state
 
         def article_list_callback(self, *args): # ON LISTBOX SELECTION
-            self.parent.write_to_manifest()
-            self.sb_qty.delete(0, tk.END)
-            self.sb_qty.insert(0, "0")
-            self.text_comment.delete(1.0, tk.END)
-            self.rb_normal.select()
-            self.text_comment.delete(1.0, tk.END)
-            self.parent.dil_manager_refresh()
+            self.parent.dil_mgr_article_update()
 
         def other_callback(self, *args):
             self.parent.write_to_manifest()
-            self.parent.dil_manager_refresh()
 
 
 # noinspection PyBroadException
