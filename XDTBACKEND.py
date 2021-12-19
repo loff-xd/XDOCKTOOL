@@ -18,7 +18,7 @@ xdt_userdata_file = "xdt_userdata.json"
 
 # USER SETTING DEFAULTS
 user_settings = {
-    "show_all_articles": False,
+    "hr_disp_mode": "Expand None",
     "open_on_save": True,
     "hr_articles": [],
     "DIL folder": ""
@@ -93,7 +93,7 @@ class SSCC:
             return self.articles[0].code
 
     def desc_repr(self):
-        if user_settings["show_all_articles"]:
+        if user_settings["hr_disp_mode"] == "Expand All":
             if len(self.articles) > 1:
                 string = ""
                 for article in self.articles:
@@ -103,12 +103,18 @@ class SSCC:
                 return self.articles[0].desc
         else:
             if len(self.articles) > 1:
-                return "Lines contained in SSCC:"
+                if user_settings["hr_disp_mode"] == "Expand HR" and self.is_HR:
+                    string = ""
+                    for article in self.articles:
+                        string += article.code + "\n"
+                    return string
+                else:
+                    return "Lines contained in SSCC:"
             else:
                 return self.articles[0].desc
 
     def qty_repr(self):
-        if user_settings["show_all_articles"]:
+        if user_settings["hr_disp_mode"] == "Expand All":
             if len(self.articles) > 1:
                 string = ""
                 for article in self.articles:
@@ -118,7 +124,13 @@ class SSCC:
                 return self.articles[0].qty
         else:
             if len(self.articles) > 1:
-                return len(self.articles)
+                if user_settings["hr_disp_mode"] == "Expand HR" and self.is_HR:
+                    string = ""
+                    for article in self.articles:
+                        string += article.qty + "\n"
+                    return string
+                else:
+                    return len(self.articles)
             else:
                 return self.articles[0].qty
 
