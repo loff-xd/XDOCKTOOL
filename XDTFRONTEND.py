@@ -8,6 +8,9 @@ import tkinter as tk
 import tkinter.messagebox
 from tkinter import ttk, filedialog
 import sys as system
+import datetime
+
+import XDTBACKEND
 import XDTBACKEND as backend
 
 # Application setup
@@ -15,7 +18,30 @@ selected_manifest = ""
 backend.json_load()
 user_settings = backend.user_settings
 
-application_version = "1.1.1.2"
+application_version = "1.1.1.3"
+
+x_mgr_ascii = "@@(//@@@@@@@@@@@@@@@@@@(/////////////////(@@@@@@@@@@@@@@@@@&///@@@@@@(///%@@@@@%/////(@@@@@@@@@(////#@@@@@@@@@@@&/////#@\n\
+@@@@///@@@@@@@@@@@@@@@@@#///////////////&@@@@@@@@@@@@@@@@@#////@@@@@@@///@@@@@@%///#@@@@@&&&@@@@@(//#@@@@&&&&@@@@@////#@\n\
+@@@@@#//&@@@@@@@@@@@@@@@@@////////////(@@@@@@@@@@@@@@@@@%//////@@@@%@@%/@@@(@@@%//%@@@@(////////////#@@@@@@@@@@@@%////#@\n\
+@@@@@@@(//@@@@@@@@@@@@@@@@@&/////////%@@@@@@@@@@@@@@@@@////////@@@@/@@@(@@@/@@@%//%@@@@(//&@@@@@@%//#@@@@@@@@@@#//////#@\n\
+@@@@@@@@&//%@@@@@@@@@@@@@@@@@///////@@@@@@@@@@@@@@@@@(/////////@@@@//@@@@%//@@@%///@@@@@&///@@@@@%//#@@@@#//@@@@@/////#@\n\
+@@@@@@@@@@#//&@@@@@@@@@@@@@@@@@///%@@@@@@@@@@@@@@@@@///////////@@@@///@@@///@@@%/////@@@@@@@@@@@////#@@@@#///@@@@@#///#@\n\
+@@@@@@@@@@@@//#@@@@@@@@@@@@@@@@@(@@@@@@@@@@@@@@@@@///////////////////////////////////////////////////////////////////(@@\n\
+@@@@@@@@@@@@@%//%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&//////////////////////////////////////////////////////////////////%@@@@\n\
+@@@@@@@@@@@@@@@%/(@@@@@@@@@@@@@@@@@@@@@@@@@@@@@/////////////////////////////////////////////////////////////////(@@@@@@@\n\
+@@@@@@@@@@@@@@@@@//(@@@@@@@@@@@@@@@@@@@@@@@@@%////////////////////////////////////////////////////////////////&@@@@@@@@@\n\
+@@@@@@@@@@@@@@@@@@///@@@@@@@@@@@@@@@@@@@@@@@////////////////////////////////////////////////////////////////@@@@@@@@@@@@\n\
+@@@@@@@@@@@@@@@@@&//@@@@@@@@@@@@@@@@@@@@@@@@&////////////////////////////////////////////////////////////&@@@@@@@@@@@@@@\n\
+@@@@@@@@@@@@@@@@//(@@@@@@@@@@@@@@@@@@@@@@@@@@@////////////////////////////////////////////////////////(@@@@@@@@@@@@@@@@@\n\
+@@@@@@@@@@@@@@%/(@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@////////////////////////////////////////////////////%@@@@@@@@@@@@@@@@@@@\n\
+@@@@@@@@@@@@%//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%///////////////////////////////////////////////(@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@@@@@@@@@//#@@@@@@@@@@@@@@@@@&(@@@@@@@@@@@@@@@@@@(///////////////////////////////////////////&@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@@@@@@@#/(@@@@@@@@@@@@@@@@@@(///&@@@@@@@@@@@@@@@@@@///////////////////////////////////////(@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@@@@@#//&@@@@@@@@@@@@@@@@@%//////(@@@@@@@@@@@@@@@@@@(///////////////////////////////////&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@@@@//#@@@@@@@@@@@@@@@@@&//////////%@@@@@@@@@@@@@@@@@@////////////////////////////////@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@@#//&@@@@@@@@@@@@@@@@@#////////////(@@@@@@@@@@@@@@@@@@#///////////////////////////%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@@@//%@@@@@@@@@@@@@@@@@#////////////////%@@@@@@@@@@@@@@@@@@#//////////////////////(@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\
+@(//@@@@@@@@@@@@@@@@@@///////////////////(@@@@@@@@@@@@@@@@@@@///////////////////&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
 
 
 class XDTApplication(tk.Frame):
@@ -32,12 +58,21 @@ class XDTApplication(tk.Frame):
         self.preview_frame = PreviewFrame(self, text="No manifest loaded")
         self.preview_frame.grid(column=0, row=1, sticky="nsew", padx=8, pady=4)
 
+        parent.bind("<F1>", self.control_panel.get_help)
+        parent.bind("<F2>", self.control_panel.load_recent)
+        parent.bind("<Insert>", self.control_panel.open_mhtml)
+        parent.bind("<F3>", self.control_panel.launch_high_risk_manager)
+        parent.bind("<F4>", self.control_panel.launch_dil_manager)
+        parent.bind("<F5>", self.interface_update)
+        parent.bind("<F6>", self.control_panel.toggle_display_mode)
+        parent.bind("<F8>", self.control_panel.generate_pdf)
+
     def interface_update(self, *event):
         global selected_manifest
         selected_manifest = self.control_panel.combo_select_manifest.get()
         self.control_panel.combo_select_manifest["values"] = sorted(backend.manifests)
 
-        user_settings["show_all_articles"] = bool(self.control_panel.var_show_all_articles.get())
+        user_settings["hr_disp_mode"] = str(self.control_panel.var_display_mode.get())
         user_settings["open_on_save"] = bool(self.control_panel.var_open_on_save.get())
         backend.user_settings = user_settings
 
@@ -83,16 +118,18 @@ class ControlPanel(tk.LabelFrame):
                                         command=self.launch_dil_manager)
         self.button_gen_dil.grid(column=4, row=0, padx=4, pady=4)
 
-        self.var_show_all_articles = tk.IntVar()
-        self.check_show_all_articles = tk.Checkbutton(self, text="Show all articles",
-                                                      variable=self.var_show_all_articles,
-                                                      command=self.parent.interface_update)
-        self.check_show_all_articles.grid(column=10, row=0, padx=4, pady=4)
+        tk.Label(self, text="Display Mode:").grid(column=10, row=0, padx=4, pady=4)
+
+        self.var_display_mode = tk.StringVar()
+        self.display_mode_menu = ttk.Combobox(self, textvariable=self.var_display_mode, state="readonly", width=14)
+        self.display_mode_menu.grid(column=11, row=0, padx=4, pady=4)
+        self.display_mode_menu.bind("<<ComboboxSelected>>", self.parent.interface_update)
+        self.display_mode_menu["values"] = ("Expand None", "Expand HR", "Expand All")
 
         self.var_open_on_save = tk.IntVar()
         self.check_open_on_save = tk.Checkbutton(self, text="Switch to PDF on save", variable=self.var_open_on_save,
                                                  command=self.parent.interface_update)
-        self.check_open_on_save.grid(column=11, row=0, padx=4, pady=10)
+        self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
 
         self.button_help = tk.Button(self, text="Help", command=self.get_help)
         self.button_help.grid(column=20, row=0, padx=8, pady=4, sticky="e")
@@ -103,18 +140,35 @@ class ControlPanel(tk.LabelFrame):
         self.button_export_pdf["state"] = "disabled"
 
         # Set user settings
-        if user_settings["show_all_articles"]:
-            self.check_show_all_articles.select()
-        else:
-            self.check_show_all_articles.deselect()
+        try:
+            self.display_mode_menu.set(user_settings["hr_disp_mode"])
+        except Exception:
+            self.display_mode_menu.set("Expand None")
 
         if user_settings["open_on_save"]:
             self.check_open_on_save.select()
         else:
             self.check_open_on_save.deselect()
 
-    def open_mhtml(self):
+    # noinspection PyBroadException
+    def load_recent(self, *args):
         try:
+            # Most recent
+            recent = XDTBACKEND.manifests[0]
+            for manifest in XDTBACKEND.manifests:
+                if manifest.import_date > recent.import_date:
+                    recent = manifest
+
+            self.combo_select_manifest.set(recent.manifest_id)
+            self.parent.interface_update()
+            root.title(base_title + "Loaded recent")
+
+        except:
+            pass
+
+    def open_mhtml(self, *args):
+        try:
+            root.title(base_title + "Open MHTML")
             mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
             imported_manifest_id = backend.mhtml_importer(mhtml_location)
             self.combo_select_manifest.set(imported_manifest_id)
@@ -123,7 +177,8 @@ class ControlPanel(tk.LabelFrame):
             pass
 
     @staticmethod
-    def generate_pdf():
+    def generate_pdf(*args):
+        root.title(base_title + "Generate PDF")
         manifest = backend.get_manifest_from_id(selected_manifest)
         save_location = filedialog.asksaveasfilename(filetypes=[("PDF Document", ".pdf")],
                                                      initialfile=str(manifest.manifest_id + ".pdf"))
@@ -133,21 +188,25 @@ class ControlPanel(tk.LabelFrame):
                 root.destroy()
                 system.exit()
 
-    def launch_high_risk_manager(self):
-        self.hr_manager = HighRiskManager(self, padx=4, pady=4)
+    def launch_high_risk_manager(self, *args):
+        if len(selected_manifest) > 0:
+            root.title(base_title + "Launch HR Manager")
+            self.hr_manager = HighRiskManager(self, padx=4, pady=4)
 
-    def launch_dil_manager(self):
-        if len(backend.user_settings["DIL folder"]) < 1:
-            tkinter.messagebox.showinfo("No DIL folder set!",
-                                        "Please set a folder for X-Dock Manager to output all DIL reports.")
-            backend.user_settings["DIL folder"] = tkinter.filedialog.askdirectory()
-            if not len(backend.user_settings["DIL folder"]) < 1:
+    def launch_dil_manager(self, *args):
+        if len(selected_manifest) > 0:
+            root.title(base_title + "Launch DIL Manager")
+            if len(backend.user_settings["DIL folder"]) < 1:
+                tkinter.messagebox.showinfo("No DIL folder set!",
+                                            "Please set a folder for X-Dock Manager to output all DIL reports.")
+                backend.user_settings["DIL folder"] = tkinter.filedialog.askdirectory()
+                if not len(backend.user_settings["DIL folder"]) < 1:
+                    self.dil_manager = DILManager(self)
+            else:
                 self.dil_manager = DILManager(self)
-        else:
-            self.dil_manager = DILManager(self)
 
     @staticmethod
-    def get_help():
+    def get_help(*args):
         tkinter.messagebox.showinfo("Assistance with X-Dock Manager",
                                     "Hey there,\n\n"
                                     "The full documentation for this software can only be distributed internally. "
@@ -157,7 +216,22 @@ class ControlPanel(tk.LabelFrame):
                                     + str(os.getcwd()) + "\n\n"
                                                          "Any issues/bugs/suggestions can be logged via GitHub:\n"
                                                          "https://github.com/loff-xd/XDOCKTOOL\n\n"
-                                                         "Cheers for taking the X-Dock Manager for a spin!")
+                                                         "Cheers for taking the X-Dock Manager for a spin!\n\n"
+                                                         "Shortcuts:\n"
+                                                         "- Load most recent manifest: F2\n"
+                                                         "- Import manifest: INSERT\n"
+                                                         "- High Risk Manager: F3\n"
+                                                         "- DIL Manager: F4\n"
+                                                         "- Toggle Display Mode: F6\n"
+                                                         "- Save Manifest: F8")
+
+    def toggle_display_mode(self, *args):
+        root.title(base_title + "Changed Display Mode")
+        try:
+            self.display_mode_menu.current(newindex=self.display_mode_menu.current()+1)
+        except:
+            self.display_mode_menu.current(newindex=0)
+        main_window.interface_update()
 
 
 class PreviewFrame(tk.LabelFrame):
@@ -170,6 +244,42 @@ class PreviewFrame(tk.LabelFrame):
 
         self.text_preview = tk.Text(self)
         self.text_preview.grid(column=0, row=0, sticky="nsew", padx=(8, 0), pady=(8, 8))
+
+        # Start Page
+        start_page = x_mgr_ascii
+
+        try:
+            # Most recent
+            recent = XDTBACKEND.manifests[0]
+            for manifest in XDTBACKEND.manifests:
+                if manifest.import_date > recent.import_date:
+                    recent = manifest
+            start_page += "\n Most recent manifest: " + recent.manifest_id + " (" + recent.import_date + ")\n"
+
+            # DILs raised
+            dil_count = 0
+            date_today = datetime.date.today()
+            date_prior = date_today - datetime.timedelta(days=2)
+
+            for manifest in XDTBACKEND.manifests:
+                if str(date_prior) < manifest.import_date:
+                    for sscc in manifest.ssccs:
+                        if sscc.dil_status != "":
+                            dil_count += 1
+            start_page += "\n DILs created (Last 48hrs): " + str(dil_count)
+        except Exception as e:
+            pass
+
+        start_page += "\n\n Shortcuts:\n" \
+                      " - Load most recent manifest: F2\n" \
+                      " - Import Manifest:           INSERT\n" \
+                      " - High Risk Manager:         F3\n" \
+                      " - DIL Manager:               F4\n" \
+                      " - Toggle Display Mode:       F6\n" \
+                      " - Save Manifest:             F8"
+
+        self.text_preview.insert(tk.INSERT, start_page)
+
         self.text_preview['state'] = 'disabled'
 
         self.preview_scroll = tk.Scrollbar(self, command=self.text_preview.yview)
@@ -188,6 +298,9 @@ class HighRiskManager(tk.Toplevel):
         self.grab_set()
         self.focus()
         self.resizable(False, False)
+
+        self.bind("<F8>", self.close_hr_manager)
+        self.bind('<Escape>', lambda e: self.destroy())
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -210,10 +323,10 @@ class HighRiskManager(tk.Toplevel):
         dialog_reset = tk.Button(self, text="Reset Articles", command=self.reset_hr_manager)
         dialog_reset.grid(column=0, row=1, sticky="sw", padx=35)
 
-        dialog_close_button = tk.Button(self, text="Finished", command=self.close_hr_manager)
+        dialog_close_button = tk.Button(self, text="Finished (F8)", command=self.close_hr_manager)
         dialog_close_button.grid(column=0, row=1, sticky="se", padx=35)
 
-    def close_hr_manager(self):
+    def close_hr_manager(self, *args):
         # Get selection from HR SSCCs
         sscc_listbox_content = []
         for index in self.sscc_tab.hr_sscc_list:
@@ -502,6 +615,9 @@ class DILManager(tk.Toplevel):
         self.focus()
         self.resizable(False, False)
 
+        self.bind("<F8>", self.output_dils)
+        self.bind('<Escape>', lambda e: self.destroy())
+
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
@@ -530,8 +646,9 @@ class DILManager(tk.Toplevel):
             self.sscc_frame.set_state()  # ENABLE SSCC SETTINGS
 
             # POPULATE AND ENABLE ARTICLE LIST IF SSCC PICKED + SET SSCC SETTINGS
-            target_sscc = self.target_manifest.get_sscc((self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection()))\
-                .replace(" ", "").replace("*", "")) # GET SSCC OBJ FROM MANIFEST
+            target_sscc = self.target_manifest.get_sscc(
+                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
+                .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
             if target_sscc is not None:
                 if target_sscc.dil_status == "missing":
                     self.sscc_frame.rb_missing.select()
@@ -551,7 +668,7 @@ class DILManager(tk.Toplevel):
             self.article_frame.listbox_content.set(sorted(self.article_list, key=lambda a: a.replace("*", "")))
             self.article_frame.set_list_state()
 
-            if self.sscc_frame.rb_variable.get() == "normal": # DISABLE ARTICLE SIDE IF NORMAL ISN'T PICKED
+            if self.sscc_frame.rb_variable.get() == "normal":  # DISABLE ARTICLE SIDE IF NORMAL ISN'T PICKED
                 self.article_frame.set_list_state()
             else:
                 self.article_frame.set_list_state("disabled")
@@ -562,7 +679,7 @@ class DILManager(tk.Toplevel):
 
         self.control_panel.update_dil_count()
 
-    def dil_mgr_article_update(self, *args): # CALL ON ARTICLE LIST CHANGE
+    def dil_mgr_article_update(self, *args):  # CALL ON ARTICLE LIST CHANGE
         self.article_frame.rb_normal.select()
         self.article_frame.sb_qty.delete(0, tk.END)
         self.article_frame.text_comment.delete(1.0, tk.END)
@@ -571,7 +688,7 @@ class DILManager(tk.Toplevel):
         if len(self.article_frame.article_listbox.curselection()) > 0:
             target_sscc = self.target_manifest.get_sscc(
                 (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
-                .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
+                    .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
 
             selected_article = target_sscc.get_article(
                 self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()) \
@@ -587,7 +704,6 @@ class DILManager(tk.Toplevel):
             elif selected_article.dil_status == "damaged":
                 self.article_frame.rb_damaged.select()
 
-
             self.article_frame.desired_qty.configure(text=("Desired Qty: " + str(selected_article.qty)))
         else:
             self.article_frame.set_state("disabled")
@@ -596,7 +712,7 @@ class DILManager(tk.Toplevel):
 
     def write_to_manifest(self, *args):
         if len(self.sscc_frame.sscc_listbox.curselection()) > 0:
-            selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection()))\
+            selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
                 .replace(" ", "").replace("*", "")
 
             if len(self.article_frame.article_listbox.curselection()) > 0:
@@ -612,7 +728,8 @@ class DILManager(tk.Toplevel):
                         if len(self.article_frame.article_listbox.curselection()) > 0:
                             for article in sscc.articles:
                                 if article.code == selected_article:
-                                    if (self.article_frame.rb_variable.get() != "normal") and (int(self.article_frame.sb_qty.get()) != 0):
+                                    if (self.article_frame.rb_variable.get() != "normal") and (
+                                            int(self.article_frame.sb_qty.get()) != 0):
                                         article.dil_status = self.article_frame.rb_variable.get()
                                         article.dil_qty = int(self.article_frame.sb_qty.get())
                                         article.dil_comment = str(self.article_frame.text_comment.get(1.0, "end-1c"))
@@ -646,7 +763,7 @@ class DILManager(tk.Toplevel):
                 sscc_list.append("*" + sscc.sscc[:-4] + " " + last_four(sscc.sscc))
         self.sscc_frame.listbox_content.set(sorted(sscc_list, key=last_four))
 
-    def output_dils(self):
+    def output_dils(self, *args):
         self.write_to_manifest()
         if self.control_panel.update_dil_count() != 0:
             backend.generate_DIL(selected_manifest)
@@ -654,7 +771,7 @@ class DILManager(tk.Toplevel):
             self.destroy()
         else:
             tkinter.messagebox.showerror("Can i get uhhhh...",
-                                        "There are no DILs to generate!", parent=self)
+                                         "There are no DILs to generate!", parent=self)
 
     def reset_all(self):
         if tkinter.messagebox.askyesno("Hol up!",
@@ -697,7 +814,7 @@ class DILManager(tk.Toplevel):
             self.button_dil_folder = tk.Button(self, text="Change DIL Folder", command=parent.change_dil_folder)
             self.button_dil_folder.grid(column=11, row=0, padx=4, pady=4, sticky="e")
 
-            self.button_output_dil = tk.Button(self, text="Generate", command=parent.output_dils)
+            self.button_output_dil = tk.Button(self, text="Generate (F8)", command=parent.output_dils)
             self.button_output_dil.grid(column=12, row=0, padx=4, pady=4, sticky="e")
 
             self.update_dil_count()
@@ -767,7 +884,7 @@ class DILManager(tk.Toplevel):
             self.rb_missing["state"] = state
             self.text_comment["state"] = state
 
-        def sscc_list_callback(self, *args): # ON LISTBOX SELECTION
+        def sscc_list_callback(self, *args):  # ON LISTBOX SELECTION
             self.parent.dil_mgr_sscc_update()
 
         def rb_callback(self, *args):
@@ -838,7 +955,7 @@ class DILManager(tk.Toplevel):
             self.text_comment["state"] = state
             self.sb_qty["state"] = state
 
-        def article_list_callback(self, *args): # ON LISTBOX SELECTION
+        def article_list_callback(self, *args):  # ON LISTBOX SELECTION
             self.parent.dil_mgr_article_update()
 
         def other_callback(self, *args):
@@ -855,7 +972,7 @@ def do_argv_check():
             main_window.control_panel.combo_select_manifest.set(imported_manifest_id)
             main_window.interface_update()
         except Exception as e:
-            print(e)
+            pass
 
 
 def exit_app():
@@ -878,7 +995,8 @@ def set_centre_geometry(target, w, h):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("X-Dock Manager - " + application_version)
+    base_title = "X-Dock Manager - " + application_version + " - "
+    root.title(base_title + "Ready")
     root.iconbitmap("XDMGR.ico")
     set_centre_geometry(root, 1024, 768)
     root.columnconfigure(0, weight=1)
