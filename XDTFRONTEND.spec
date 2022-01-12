@@ -7,7 +7,7 @@ block_cipher = None
 a = Analysis(['XDTFRONTEND.py'],
              pathex=['venv\\Lib\\site-packages', 'C:\\Users\\Loff0\\PycharmProjects\\XDOCKTOOL'],
              binaries=[],
-             datas=[('XDMGR.ico', '.'), ('application.version', '.')],
+             datas=[('res/XDMGR.ico', './res'), ('res/application.version', './res')],
              hiddenimports=[],
              hookspath=[],
              hooksconfig={},
@@ -33,7 +33,7 @@ exe = EXE(pyz,
           disable_windowed_traceback=False,
           target_arch=None,
           codesign_identity=None,
-          entitlements_file=None , version='version.txt', icon='XDMGR.ico')
+          entitlements_file=None , version='res\\version.txt', icon='res\\XDMGR.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
