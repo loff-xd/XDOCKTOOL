@@ -105,6 +105,9 @@ class ControlPanel(tk.LabelFrame):
         self.button_gen_dil["state"] = "disabled"
         self.button_export_pdf["state"] = "disabled"
 
+        self.hr_manager = None
+        self.dil_manager = None
+
         # Set user settings
         try:
             self.display_mode_menu.set(backend.user_settings["hr_disp_mode"])
@@ -217,23 +220,24 @@ class PreviewFrame(tk.LabelFrame):
 
         try:
             # Most recent
-            recent = backend.manifests[0]
-            for manifest in backend.manifests:
-                if manifest.import_date > recent.import_date:
-                    recent = manifest
-            start_page += "\n Most recent manifest: " + recent.manifest_id + " (" + recent.import_date + ")\n"
+            if len(backend.manifests) > 0:
+                recent = backend.manifests[0]
+                for manifest in backend.manifests:
+                    if manifest.import_date > recent.import_date:
+                        recent = manifest
+                start_page += "\n Most recent manifest: " + recent.manifest_id + " (" + recent.import_date + ")\n"
 
-            # DILs raised
-            dil_count = 0
-            date_today = datetime.date.today()
-            date_prior = date_today - datetime.timedelta(days=2)
+                # DILs raised
+                dil_count = 0
+                date_today = datetime.date.today()
+                date_prior = date_today - datetime.timedelta(days=2)
 
-            for manifest in backend.manifests:
-                if str(date_prior) < manifest.import_date:
-                    for sscc in manifest.ssccs:
-                        if sscc.dil_status != "":
-                            dil_count += 1
-            start_page += "\n DILs created (Last 48hrs): " + str(dil_count)
+                for manifest in backend.manifests:
+                    if str(date_prior) < manifest.import_date:
+                        for sscc in manifest.ssccs:
+                            if sscc.dil_status != "":
+                                dil_count += 1
+                start_page += "\n DILs created (Last 48hrs): " + str(dil_count)
         except Exception as e:
             panik.log(e)
 

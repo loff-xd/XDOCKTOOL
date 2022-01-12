@@ -36,6 +36,8 @@ class DILManager(tk.Toplevel):
         self.article_frame.grid(column=1, row=1, padx=8, pady=(0, 8), sticky="nsew")
         self.article_frame.set_list_state("disabled")
 
+        self.article_list = []
+
     def change_dil_folder(self):
         request = tk.filedialog.askdirectory(parent=self)
         if not len(request) < 1:
@@ -113,6 +115,8 @@ class DILManager(tk.Toplevel):
         if len(self.sscc_frame.sscc_listbox.curselection()) > 0:
             selected_sscc = (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
                 .replace(" ", "").replace("*", "")
+
+            selected_article = []
 
             if len(self.article_frame.article_listbox.curselection()) > 0:
                 selected_article = self.article_frame.article_listbox.get(
@@ -217,6 +221,8 @@ class DILManager(tk.Toplevel):
             self.button_output_dil.grid(column=12, row=0, padx=4, pady=4, sticky="e")
 
             self.update_dil_count()
+
+            self.dil_count = 0
 
         def update_dil_count(self):
             self.dil_count = 0

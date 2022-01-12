@@ -14,6 +14,7 @@ from fpdf import FPDF
 from tabulate import tabulate
 import PanikModule as panik
 
+# CONFIG
 manifests = []
 selected_manifest = ""
 xdt_userdata_file = "xdt_userdata.json"
@@ -267,30 +268,31 @@ def json_load():
             xdt_userdata = json.load(file)
 
         # Convert JSON back into manifest array
-        try:
-            for entry in xdt_userdata.get("Manifests"):
-                new_manifest = Manifest(entry.get("Manifest ID", "000000"))
-                new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
-                for sscc in entry.get("SSCCs", []):
-                    new_sscc = SSCC(sscc["SSCC"])
-                    new_sscc.is_HR = sscc["is_HR"]
-                    new_sscc.dil_status = sscc.get("DIL Status", "")
-                    new_sscc.dil_comment = sscc.get("DIL Comment", "")
-                    for article in sscc.get("Articles", []):
-                        new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
-                                              article["is_HR"])
-                        new_article.dil_status = article.get("DIL Status", "")
-                        new_article.dil_qty = article.get("DIL Qty", 0)
-                        new_article.dil_comment = article.get("DIL Comment", "")
-                        new_sscc.articles.append(new_article)
-                    new_manifest.ssccs.append(new_sscc)
-                manifests.append(new_manifest)
+        if xdt_userdata.get("Manifests") is not None:
+            try:
+                for entry in xdt_userdata.get("Manifests"):
+                    new_manifest = Manifest(entry.get("Manifest ID", "000000"))
+                    new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
+                    for sscc in entry.get("SSCCs", []):
+                        new_sscc = SSCC(sscc["SSCC"])
+                        new_sscc.is_HR = sscc["is_HR"]
+                        new_sscc.dil_status = sscc.get("DIL Status", "")
+                        new_sscc.dil_comment = sscc.get("DIL Comment", "")
+                        for article in sscc.get("Articles", []):
+                            new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
+                                                  article["is_HR"])
+                            new_article.dil_status = article.get("DIL Status", "")
+                            new_article.dil_qty = article.get("DIL Qty", 0)
+                            new_article.dil_comment = article.get("DIL Comment", "")
+                            new_sscc.articles.append(new_article)
+                        new_manifest.ssccs.append(new_sscc)
+                    manifests.append(new_manifest)
 
-                global user_settings
-                user_settings.update(xdt_userdata.get("userdata", user_settings))
+                    global user_settings
+                    user_settings.update(xdt_userdata.get("userdata", user_settings))
 
-        except Exception as e:
-            panik.log(e)
+            except Exception as e:
+                panik.log(e)
 
 
 def json_save():
@@ -423,8 +425,8 @@ def generate_DIL(manifest_id):
             pdf_file.output(filename, 'F')
 
 
-def format_preview(selected_manifest):
-    manifest = get_manifest_from_id(selected_manifest)
+def format_preview(s_manifest):
+    manifest = get_manifest_from_id(s_manifest)
     tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
     for sscc in sorted(manifest.ssccs):
         tb_content.append(

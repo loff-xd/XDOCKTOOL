@@ -85,8 +85,8 @@ class HighRiskManager(tk.Toplevel):
 
     def reset_hr_manager(self):
         if tk.messagebox.askyesno("Hol up!",
-                                       "This will clear all user-set articles to be automatically marked as high risk! "
-                                       "Are you sure you want to do this?", parent=self):
+                                  "This will clear all user-set articles to be automatically marked as high risk! "
+                                  "Are you sure you want to do this?", parent=self):
             backend.user_settings["hr_articles"] = []
             self.article_tab.reset()
 
