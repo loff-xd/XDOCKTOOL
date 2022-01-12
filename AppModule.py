@@ -121,19 +121,20 @@ class ControlPanel(tk.LabelFrame):
 
     # noinspection PyBroadException
     def load_recent(self, *args):
-        try:
-            # Most recent
-            recent = backend.manifests[0]
-            for manifest in backend.manifests:
-                if manifest.import_date > recent.import_date:
-                    recent = manifest
+        if len(backend.manifests) > 0:
+            try:
+                # Most recent
+                recent = backend.manifests[0]
+                for manifest in backend.manifests:
+                    if manifest.import_date > recent.import_date:
+                        recent = manifest
 
-            self.combo_select_manifest.set(recent.manifest_id)
-            self.parent.interface_update()
-            root.title(base_title + "Loaded recent")
+                self.combo_select_manifest.set(recent.manifest_id)
+                self.parent.interface_update()
+                root.title(base_title + "Loaded recent")
 
-        except Exception as e:
-            panik.log(e)
+            except Exception as e:
+                panik.log(e)
 
     def open_mhtml(self, *args):
         try:

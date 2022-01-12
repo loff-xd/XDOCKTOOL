@@ -253,6 +253,8 @@ def mhtml_importer(file_path):
     if new_manifest not in manifests:
         new_manifest.import_date = str(datetime.date.today())
         manifests.append(new_manifest)
+
+    json_save()
     return new_manifest.manifest_id
 
 
@@ -341,7 +343,8 @@ def generate_pdf(manifest, pdf_location):
         pdf_file.output(pdf_location, 'F')
 
         # Open the pdf if user has requested
-        os.startfile(pdf_location)
+        if user_settings['open_on_save']:
+            os.startfile(pdf_location)
 
     except Exception as e:
         panik.log(e)
