@@ -14,6 +14,8 @@ import XDTBACKEND
 import XDTBACKEND as backend
 
 # Application setup
+import panik
+
 selected_manifest = ""
 backend.json_load()
 user_settings = backend.user_settings
@@ -66,6 +68,7 @@ class XDTApplication(tk.Frame):
         parent.bind("<F5>", self.interface_update)
         parent.bind("<F6>", self.control_panel.toggle_display_mode)
         parent.bind("<F8>", self.control_panel.generate_pdf)
+        parent.bind("<F12>", panik.report)
 
     def interface_update(self, *event):
         global selected_manifest
@@ -163,8 +166,8 @@ class ControlPanel(tk.LabelFrame):
             self.parent.interface_update()
             root.title(base_title + "Loaded recent")
 
-        except:
-            pass
+        except Exception as e:
+            panik.log(e)
 
     def open_mhtml(self, *args):
         try:
@@ -173,8 +176,8 @@ class ControlPanel(tk.LabelFrame):
             imported_manifest_id = backend.mhtml_importer(mhtml_location)
             self.combo_select_manifest.set(imported_manifest_id)
             main_window.interface_update()
-        except:
-            pass
+        except Exception as e:
+            panik.log(e)
 
     @staticmethod
     def generate_pdf(*args):
@@ -223,12 +226,13 @@ class ControlPanel(tk.LabelFrame):
                                                          "- High Risk Manager: F3\n"
                                                          "- DIL Manager: F4\n"
                                                          "- Toggle Display Mode: F6\n"
-                                                         "- Save Manifest: F8")
+                                                         "- Save Manifest: F8\n"
+                                                         "- Send error report to dev: F12")
 
     def toggle_display_mode(self, *args):
         root.title(base_title + "Changed Display Mode")
         try:
-            self.display_mode_menu.current(newindex=self.display_mode_menu.current()+1)
+            self.display_mode_menu.current(newindex=self.display_mode_menu.current() + 1)
         except:
             self.display_mode_menu.current(newindex=0)
         main_window.interface_update()
@@ -648,7 +652,7 @@ class DILManager(tk.Toplevel):
             # POPULATE AND ENABLE ARTICLE LIST IF SSCC PICKED + SET SSCC SETTINGS
             target_sscc = self.target_manifest.get_sscc(
                 (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())) \
-                .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
+                    .replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
             if target_sscc is not None:
                 if target_sscc.dil_status == "missing":
                     self.sscc_frame.rb_missing.select()

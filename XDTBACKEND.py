@@ -13,6 +13,8 @@ from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
 
+import panik
+
 manifests = []
 xdt_userdata_file = "xdt_userdata.json"
 
@@ -75,7 +77,8 @@ class SSCC:
         article_list = []
         for article in self.articles:
             article_list.append(article.export())
-        return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "DIL Comment": self.dil_comment, "Articles": article_list}
+        return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "DIL Comment": self.dil_comment,
+                "Articles": article_list}
 
     def hr_repr(self):
         if self.is_HR:
@@ -182,7 +185,6 @@ def junk_check(var):
         return False
 
 
-# noinspection PyBroadException
 def mhtml_importer(file_path):
     # Import mhtml
     with open(file_path, 'r') as source:
@@ -229,7 +231,6 @@ def mhtml_importer(file_path):
     return new_manifest.manifest_id
 
 
-# noinspection PyBroadException
 def json_load():
     # Load the JSON
     global manifests
@@ -252,7 +253,8 @@ def json_load():
                     new_sscc.dil_status = sscc.get("DIL Status", "")
                     new_sscc.dil_comment = sscc.get("DIL Comment", "")
                     for article in sscc.get("Articles", []):
-                        new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"], article["is_HR"])
+                        new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
+                                              article["is_HR"])
                         new_article.dil_status = article.get("DIL Status", "")
                         new_article.dil_qty = article.get("DIL Qty", 0)
                         new_article.dil_comment = article.get("DIL Comment", "")
@@ -282,37 +284,41 @@ def json_save():
 
 
 def generate_pdf(manifest, pdf_location):
-    # Create file and header
-    pdf_file = FPDF("P", "mm", "A4")
-    pdf_file.add_page()
-    pdf_file.set_font('Courier', '', 14)
-    pdf_file.set_title(manifest.manifest_id)
-    title_text = "Manifest: " + manifest.manifest_id + " - Processed on: " + manifest.import_date
-    pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
+    try:
+        # Create file and header
+        pdf_file = FPDF("P", "mm", "A4")
+        pdf_file.add_page()
+        pdf_file.set_font('Courier', '', 14)
+        pdf_file.set_title(manifest.manifest_id)
+        title_text = "Manifest: " + manifest.manifest_id + " - Processed on: " + manifest.import_date
+        pdf_file.cell(w=200, h=12, txt=title_text, ln=1, align="L")
 
-    # Make the table for the PDF
-    pdf_file.set_font('Courier', '', 9)
-    pdf_file.set_fill_color(220)
-    tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
+        # Make the table for the PDF
+        pdf_file.set_font('Courier', '', 9)
+        pdf_file.set_fill_color(220)
+        tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
 
-    for sscc in sorted(manifest.ssccs):
-        tb_content.append([sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(),
-                           sscc.short_sscc, "[    ]"])
+        for sscc in sorted(manifest.ssccs):
+            tb_content.append([sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(),
+                               sscc.short_sscc, "[    ]"])
 
-    cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple")).split("\n")
+        cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple")).split("\n")
 
-    # Darken for HR items
-    for row in cell_text:
-        if ":BOX" in row or ":ART" in row:
-            pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", fill=True, border=1)
-        else:
-            pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", border=1)
+        # Darken for HR items
+        for row in cell_text:
+            if ":BOX" in row or ":ART" in row:
+                pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", fill=True, border=1)
+            else:
+                pdf_file.cell(w=0, h=5, txt=row, ln=1, align="L", border=1)
 
-    # Actually save the pdf
-    pdf_file.output(pdf_location, 'F')
+        # Actually save the pdf
+        pdf_file.output(pdf_location, 'F')
 
-    # Open the pdf if user has requested
-    os.startfile(pdf_location)
+        # Open the pdf if user has requested
+        os.startfile(pdf_location)
+
+    except Exception as e:
+        panik.log(e)
 
 
 def generate_DIL(manifest_id):
@@ -346,7 +352,8 @@ def generate_DIL(manifest_id):
                 for article in sscc.articles:
                     if article.dil_status != "damaged":
                         tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
-                                           (int(article.qty)-int(article.dil_qty)), textwrap.fill(article.dil_comment, 30)])
+                                           (int(article.qty) - int(article.dil_qty)),
+                                           textwrap.fill(article.dil_comment, 30)])
                     else:
                         tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
                                            article.qty, textwrap.fill(article.dil_comment, 30)])
