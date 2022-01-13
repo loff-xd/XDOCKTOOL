@@ -295,7 +295,7 @@ backend.json_load()
 root = tk.Tk()
 base_title = "X-Dock Manager - " + backend.application_version + " - "
 root.title(base_title + "Ready")
-root.iconbitmap("res/XDMGR.ico")
+root.iconbitmap("XDMGR.ico")
 set_centre_geometry(root, 1024, 768)
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
