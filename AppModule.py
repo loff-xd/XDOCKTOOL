@@ -8,6 +8,7 @@ import BackendModule as backend
 import PanikModule as panik
 import DILModule
 import HRModule
+import SearchModule
 
 
 class XDTApplication(tk.Frame):
@@ -42,7 +43,8 @@ class XDTApplication(tk.Frame):
         backend.user_settings["open_on_save"] = bool(self.control_panel.var_open_on_save.get())
         backend.user_settings = backend.user_settings
 
-        if len(backend.selected_manifest) > 0:
+        if len(backend.selected_manifest) > 0 and len(
+                [x for x in backend.manifests if x.manifest_id == backend.selected_manifest]) > 0:
             self.preview_frame.text_preview['state'] = 'normal'
             self.preview_frame.text_preview.delete(1.0, tk.END)
             self.preview_frame.text_preview.insert(tk.INSERT, backend.format_preview(backend.selected_manifest))
@@ -58,6 +60,8 @@ class XDTApplication(tk.Frame):
             self.control_panel.button_set_hr["state"] = "disabled"
             self.control_panel.button_gen_dil["state"] = "disabled"
             self.control_panel.button_export_pdf["state"] = "disabled"
+            self.preview_frame.start_page()
+            self.preview_frame['text'] = "No manifest loaded"
 
 
 # noinspection PyBroadException
@@ -67,28 +71,34 @@ class ControlPanel(tk.LabelFrame):
         self.parent = parent
 
         self.combo_select_manifest = ttk.Combobox(self)
-        self.combo_select_manifest.grid(column=0, row=0, padx=10, pady=4)
+        self.combo_select_manifest.grid(column=0, row=0, padx=(10, 4), pady=4)
         self.combo_select_manifest["values"] = sorted(backend.manifests)
         self.combo_select_manifest.bind("<<ComboboxSelected>>", self.parent.interface_update)
+        self.combo_select_manifest.bind("<Return>", self.parent.interface_update)
+
+        self.button_search_image = tk.PhotoImage(file=r"search.png")
+        self.button_search = tk.Button(self, image=self.button_search_image, command=self.launch_search_module,
+                                       height=20, width=20)
+        self.button_search.grid(column=1, row=0, padx=(0, 4), pady=4)
 
         self.button_open = tk.Button(self, text="Import SAP MHTML", command=self.open_mhtml)
-        self.button_open.grid(column=1, row=0, padx=4, pady=4)
+        self.button_open.grid(column=2, row=0, padx=(4, 2), pady=4)
 
         self.button_set_hr = tk.Button(self, text="High Risk Manager", command=self.launch_high_risk_manager)
-        self.button_set_hr.grid(column=2, row=0, padx=4, pady=4)
+        self.button_set_hr.grid(column=3, row=0, padx=2, pady=4)
 
         self.button_export_pdf = tk.Button(self, text="Save PDF", command=self.generate_pdf)
-        self.button_export_pdf.grid(column=3, row=0, padx=4, pady=4)
+        self.button_export_pdf.grid(column=4, row=0, padx=2, pady=4)
 
         self.button_gen_dil = tk.Button(self, text="Generate DIL",
                                         command=self.launch_dil_manager)
-        self.button_gen_dil.grid(column=4, row=0, padx=4, pady=4)
+        self.button_gen_dil.grid(column=5, row=0, padx=(2, 4), pady=4)
 
-        tk.Label(self, text="Display Mode:").grid(column=10, row=0, padx=4, pady=4)
+        tk.Label(self, text="Display Mode:").grid(column=10, row=0, padx=(4, 0), pady=4)
 
         self.var_display_mode = tk.StringVar()
         self.display_mode_menu = ttk.Combobox(self, textvariable=self.var_display_mode, state="readonly", width=14)
-        self.display_mode_menu.grid(column=11, row=0, padx=4, pady=4)
+        self.display_mode_menu.grid(column=11, row=0, padx=(2, 4), pady=4)
         self.display_mode_menu.bind("<<ComboboxSelected>>", self.parent.interface_update)
         self.display_mode_menu["values"] = ("Expand None", "Expand HR", "Expand All")
 
@@ -107,6 +117,7 @@ class ControlPanel(tk.LabelFrame):
 
         self.hr_manager = None
         self.dil_manager = None
+        self.search_module = None
 
         # Set user settings
         try:
@@ -175,6 +186,9 @@ class ControlPanel(tk.LabelFrame):
             else:
                 self.dil_manager = DILModule.DILManager(self)
 
+    def launch_search_module(self, *args):
+        self.search_module = SearchModule.SearchWindow(self)
+
     @staticmethod
     def get_help(*args):
         tk.messagebox.showinfo("Assistance with X-Dock Manager",
@@ -216,8 +230,16 @@ class PreviewFrame(tk.LabelFrame):
         self.text_preview = tk.Text(self)
         self.text_preview.grid(column=0, row=0, sticky="nsew", padx=(8, 0), pady=(8, 8))
 
-        # Start Page
+        self.preview_scroll = tk.Scrollbar(self, command=self.text_preview.yview)
+        self.preview_scroll.grid(column=1, row=0, sticky="ns", padx=(0, 8), pady=(8, 8))
+        self.text_preview['yscrollcommand'] = self.preview_scroll.set
+
+        self.start_page()
+
+    def start_page(self):
         start_page = backend.x_mgr_ascii
+        self.text_preview['state'] = 'normal'
+        self.text_preview.delete('1.0', tk.END)
 
         try:
             # Most recent
@@ -253,10 +275,6 @@ class PreviewFrame(tk.LabelFrame):
         self.text_preview.insert(tk.INSERT, start_page)
 
         self.text_preview['state'] = 'disabled'
-
-        self.preview_scroll = tk.Scrollbar(self, command=self.text_preview.yview)
-        self.preview_scroll.grid(column=1, row=0, sticky="ns", padx=(0, 8), pady=(8, 8))
-        self.text_preview['yscrollcommand'] = self.preview_scroll.set
 
 
 # noinspection PyBroadException
