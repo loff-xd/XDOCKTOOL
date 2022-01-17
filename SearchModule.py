@@ -57,6 +57,7 @@ class SearchWindow(tk.Toplevel):
                                                       self.match_list[self.match_list_pos][1])
             self.results_frame.article_output.see(self.match_list[self.match_list_pos][0])
             self.results_frame.article_output['state'] = 'disabled'
+            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(len(self.match_list)) + "]"
 
     def previous(self, *args):
         if len(self.match_list) > 1:
@@ -77,6 +78,7 @@ class SearchWindow(tk.Toplevel):
                                                       self.match_list[self.match_list_pos][1])
             self.results_frame.article_output.see(self.match_list[self.match_list_pos][0])
             self.results_frame.article_output['state'] = 'disabled'
+            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(len(self.match_list)) + "]"
 
     def next_manifest(self, *args):
         list_len = self.results_frame.manifest_listbox.size()
@@ -88,6 +90,7 @@ class SearchWindow(tk.Toplevel):
             self.results_frame.manifest_listbox.selection_clear(0, tk.END)
             self.results_frame.manifest_listbox.see(new_pos)
             self.results_frame.manifest_listbox.selection_set(new_pos)
+            self.results_frame.manifest_listbox.index(new_pos)
             self.results_frame.manifest_listbox_callback()
 
     def prev_manifest(self, *args):
@@ -100,6 +103,7 @@ class SearchWindow(tk.Toplevel):
             self.results_frame.manifest_listbox.selection_clear(0, tk.END)
             self.results_frame.manifest_listbox.see(new_pos)
             self.results_frame.manifest_listbox.selection_set(new_pos)
+            self.results_frame.manifest_listbox.index(new_pos)
             self.results_frame.manifest_listbox_callback()
 
     class SettingsFrame(tk.LabelFrame):
@@ -107,7 +111,7 @@ class SearchWindow(tk.Toplevel):
             tk.LabelFrame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
             self["text"] = "Query:"
-            self.columnconfigure(6, weight=1)
+            self.columnconfigure(7, weight=1)
 
             tk.Label(self, text="Search Term:").grid(column=0, row=0, padx=(12, 0), pady=4, sticky="w")
 
@@ -126,11 +130,14 @@ class SearchWindow(tk.Toplevel):
             self.button_prev = tk.Button(self, text="< PREV", command=self.parent.previous)
             self.button_prev.grid(column=4, row=0, padx=(64, 4), pady=4)
 
+            self.pos_label = tk.Label(self, text="[0/0]")
+            self.pos_label.grid(column=5, row=0, padx=(2, 2), pady=4)
+
             self.button_next = tk.Button(self, text="NEXT >", command=self.parent.next)
-            self.button_next.grid(column=5, row=0, padx=(2, 4), pady=4)
+            self.button_next.grid(column=6, row=0, padx=(2, 4), pady=4)
 
             self.button_send = tk.Button(self, text="Open Manifest (F8)", command=self.parent.send_to_application)
-            self.button_send.grid(column=6, row=0, padx=(2, 4), pady=4, sticky="e")
+            self.button_send.grid(column=7, row=0, padx=(2, 4), pady=4, sticky="e")
 
         def clear_results(self, *args):
             self.search_query_entry.delete(0, tk.END)
@@ -141,7 +148,7 @@ class SearchWindow(tk.Toplevel):
             self.parent.results_frame.article_output.delete('1.0', tk.END)
             self.parent.results_frame.article_output['state'] = 'disabled'
             self.search_query_entry.focus_set()
-            self.parent.match_list = []
+            self.pos_label["text"] = "[0/0]"
 
     class ResultsFrame(tk.LabelFrame):
         selected_manifest: backend.Manifest
@@ -210,6 +217,9 @@ class SearchWindow(tk.Toplevel):
             self.article_output.delete('1.0', tk.END)
             self.article_output.insert(tk.INSERT, field_string)
 
+            self.parent.match_list_pos = 0
+            self.parent.match_list = []
+
             term = str.upper(self.parent.settings_frame.search_query_entry.get())
             pos_start = self.article_output.search(term, "1.0", tk.END)
             self.article_output.see(pos_start)
@@ -227,38 +237,46 @@ class SearchWindow(tk.Toplevel):
                                             self.parent.match_list[self.parent.match_list_pos][1])
             self.article_output['state'] = 'disabled'
 
+            self.parent.settings_frame.pos_label["text"] = "[" + str(self.parent.match_list_pos + 1) + "/" + str(len(self.parent.match_list)) + "]"
+
     def search(self, *args):
-        matching_manifests = []
         term = str.upper(self.settings_frame.search_query_entry.get())
-        self.results_frame.text_frame_update("Searching...")
-        self.update()
-        search_time = time.time()
-
-        # BEGIN SEARCH
-        for manifest in backend.manifests:
-            if term in manifest.manifest_id:
-                matching_manifests.append(manifest)
-            else:
-                for sscc in manifest.ssccs:
-                    if term in sscc.sscc and manifest not in matching_manifests:
-                        matching_manifests.append(manifest)
-                    else:
-                        for article in sscc.articles:
-                            if term in article.code and manifest not in matching_manifests:
-                                matching_manifests.append(manifest)
-
-        self.results_frame.manifest_listbox_content.set(matching_manifests)
-        if len(matching_manifests) > 0:
-            self.results_frame.manifest_listbox.selection_set(first=0)
-            self.results_frame.manifest_listbox_callback()
-        else:
+        if len(term) > 0:
+            self.results_frame.manifest_listbox_content.set([])
             self.results_frame.article_output['state'] = 'normal'
             self.results_frame.article_output.delete('1.0', tk.END)
             self.results_frame.article_output['state'] = 'disabled'
 
-        search_time = abs(search_time - time.time())
-        self.results_frame.text_frame_update(
-            str(len(matching_manifests)) + " found in " + str(round(search_time, 4)) + "s")
+            matching_manifests = []
+            self.results_frame.text_frame_update("Searching...")
+            self.update()
+            search_time = time.time()
+
+            # BEGIN SEARCH
+            for manifest in backend.manifests:
+                if term in manifest.manifest_id:
+                    matching_manifests.append(manifest)
+                else:
+                    for sscc in manifest.ssccs:
+                        if term in sscc.sscc and manifest not in matching_manifests:
+                            matching_manifests.append(manifest)
+                        else:
+                            for article in sscc.articles:
+                                if term in article.code and manifest not in matching_manifests:
+                                    matching_manifests.append(manifest)
+
+            self.results_frame.manifest_listbox_content.set(matching_manifests)
+            if len(matching_manifests) > 0:
+                self.results_frame.manifest_listbox.selection_set(first=0)
+                self.results_frame.manifest_listbox_callback()
+            else:
+                self.results_frame.article_output['state'] = 'normal'
+                self.results_frame.article_output.delete('1.0', tk.END)
+                self.results_frame.article_output['state'] = 'disabled'
+
+            search_time = abs(search_time - time.time())
+            self.results_frame.text_frame_update(
+                str(len(matching_manifests)) + " found in " + str(round(search_time, 4)) + "s")
 
     def send_to_application(self, *args):
         self.parent.combo_select_manifest.set(self.results_frame.selected_manifest.manifest_id)

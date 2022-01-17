@@ -18,7 +18,17 @@ import PanikModule as panik
 manifests = []
 selected_manifest = ""
 xdt_userdata_file = "xdt_userdata.json"
-application_version = "1.1.1.4"
+
+
+try:
+    with open(r"application.version") as version_file:
+        application_version = version_file.read()
+except Exception as e:
+    panik.log(e)
+    application_version = "Unknown Version"
+print(application_version)
+
+
 
 # USER SETTING DEFAULTS
 user_settings = {

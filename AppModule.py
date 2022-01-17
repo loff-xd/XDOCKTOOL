@@ -159,15 +159,16 @@ class ControlPanel(tk.LabelFrame):
 
     @staticmethod
     def generate_pdf(*args):
-        root.title(base_title + "Generate PDF")
-        manifest = backend.get_manifest_from_id(backend.selected_manifest)
-        save_location = filedialog.asksaveasfilename(filetypes=[("PDF Document", ".pdf")],
-                                                     initialfile=str(manifest.manifest_id + ".pdf"))
-        if len(save_location) > 0:
-            backend.generate_pdf(manifest, save_location)
-            if backend.user_settings["open_on_save"]:
-                root.destroy()
-                system.exit()
+        if backend.selected_manifest is not "":
+            root.title(base_title + "Generate PDF")
+            manifest = backend.get_manifest_from_id(backend.selected_manifest)
+            save_location = filedialog.asksaveasfilename(filetypes=[("PDF Document", ".pdf")],
+                                                         initialfile=str(manifest.manifest_id + ".pdf"))
+            if len(save_location) > 0:
+                backend.generate_pdf(manifest, save_location)
+                if backend.user_settings["open_on_save"]:
+                    root.destroy()
+                    system.exit()
 
     def launch_high_risk_manager(self, *args):
         if len(backend.selected_manifest) > 0:
