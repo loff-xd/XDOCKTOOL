@@ -22,7 +22,8 @@ class SearchWindow(tk.Toplevel):
         self.bind('<Escape>', lambda e: self.destroy())
         self.bind('<Left>', self.previous)
         self.bind('<Right>', self.next)
-        # TODO UP DOWN
+        self.bind('<Up>', self.prev_manifest)
+        self.bind('<Down>', self.next_manifest)
 
         self.rowconfigure(0, weight=0)
         self.rowconfigure(1, weight=1)
@@ -76,6 +77,30 @@ class SearchWindow(tk.Toplevel):
                                                       self.match_list[self.match_list_pos][1])
             self.results_frame.article_output.see(self.match_list[self.match_list_pos][0])
             self.results_frame.article_output['state'] = 'disabled'
+
+    def next_manifest(self, *args):
+        list_len = self.results_frame.manifest_listbox.size()
+        if list_len > 0:
+            pos = self.results_frame.manifest_listbox.curselection()[0]
+            new_pos = 0
+            if not pos == list_len - 1:
+                new_pos = pos + 1
+            self.results_frame.manifest_listbox.selection_clear(0, tk.END)
+            self.results_frame.manifest_listbox.see(new_pos)
+            self.results_frame.manifest_listbox.selection_set(new_pos)
+            self.results_frame.manifest_listbox_callback()
+
+    def prev_manifest(self, *args):
+        list_len = self.results_frame.manifest_listbox.size()
+        if list_len > 0:
+            pos = self.results_frame.manifest_listbox.curselection()[0]
+            new_pos = pos - 1
+            if new_pos < 0:
+                new_pos = list_len - 1
+            self.results_frame.manifest_listbox.selection_clear(0, tk.END)
+            self.results_frame.manifest_listbox.see(new_pos)
+            self.results_frame.manifest_listbox.selection_set(new_pos)
+            self.results_frame.manifest_listbox_callback()
 
     class SettingsFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
