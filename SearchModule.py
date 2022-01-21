@@ -122,7 +122,7 @@ class SearchWindow(tk.Toplevel):
             self.button_clear = tk.Button(self, text="X", command=self.clear_results)
             self.button_clear.grid(column=2, row=0, padx=(0, 4), pady=4)
 
-            self.button_search_image = tk.PhotoImage(file=r"search.png")
+            self.button_search_image = tk.PhotoImage(file=app.SEARCHICON)
             self.button_search = tk.Button(self, image=self.button_search_image, command=parent.search,
                                            height=20, width=20)
             self.button_search.grid(column=3, row=0, padx=(4, 4), pady=4)

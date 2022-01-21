@@ -10,6 +10,11 @@ import DILModule
 import HRModule
 import SearchModule
 
+if os.path.isfile("search.png"):
+    SEARCHICON = r"search.png"
+else:
+    SEARCHICON = r"/bin/XDOCK_MANAGER/search.png"
+
 
 class XDTApplication(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -76,7 +81,7 @@ class ControlPanel(tk.LabelFrame):
         self.combo_select_manifest.bind("<<ComboboxSelected>>", self.parent.interface_update)
         self.combo_select_manifest.bind("<Return>", self.parent.interface_update)
 
-        self.button_search_image = tk.PhotoImage(file=r"search.png")
+        self.button_search_image = tk.PhotoImage(file=SEARCHICON)
         self.button_search = tk.Button(self, image=self.button_search_image, command=self.launch_search_module,
                                        height=20, width=20)
         self.button_search.grid(column=1, row=0, padx=(0, 4), pady=4)
@@ -159,7 +164,7 @@ class ControlPanel(tk.LabelFrame):
 
     @staticmethod
     def generate_pdf(*args):
-        if backend.selected_manifest is not "":
+        if backend.selected_manifest != "":
             root.title(base_title + "Generate PDF")
             manifest = backend.get_manifest_from_id(backend.selected_manifest)
             save_location = filedialog.asksaveasfilename(filetypes=[("PDF Document", ".pdf")],
