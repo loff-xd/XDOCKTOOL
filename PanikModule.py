@@ -1,18 +1,25 @@
+import os
+import sys
 import tkinter.messagebox
 import traceback
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
-import os
 
-errorFile = "error.log"
+APP_DIR = os.getcwd()
+
+if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/error.log")):
+    errorFile = os.path.join(APP_DIR, "error.log")
+else:
+    errorFile = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/error.log")
 
 if not os.path.isfile(errorFile):
-    open(errorFile, "w")
+    with open(errorFile, "w+"):
+        pass
 
 
 def log(exception):
-    tb = traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
+    tb = traceback.format_exception(sys.exc_info(), value=exception, tb=exception.__traceback__)
     with open(errorFile, "a") as logfile:
         logfile.write(str(datetime.now()) + " {\n")
         logfile.writelines(tb)

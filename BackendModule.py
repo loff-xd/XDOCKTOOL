@@ -15,20 +15,23 @@ from tabulate import tabulate
 import PanikModule as panik
 
 # CONFIG
+APP_DIR = os.getcwd()
 manifests = []
 selected_manifest = ""
-xdt_userdata_file = "xdt_userdata.json"
+xdt_userdata_file = os.path.join(APP_DIR, "xdt_userdata.json")
 
+if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")):
+    version_file = os.path.join(APP_DIR, "application.version")
+else:
+    version_file = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")
 
 try:
-    with open(r"application.version") as version_file:
+    with open(version_file) as version_file:
         application_version = version_file.read()
 except Exception as e:
     panik.log(e)
     application_version = "Unknown Version"
 print(application_version)
-
-
 
 # USER SETTING DEFAULTS
 user_settings = {

@@ -10,10 +10,12 @@ import DILModule
 import HRModule
 import SearchModule
 
-if os.path.isfile("search.png"):
-    SEARCHICON = r"search.png"
+APP_DIR = os.getcwd()
+
+if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/search.png")):
+    SEARCHICON = os.path.join(APP_DIR, "search.png")
 else:
-    SEARCHICON = r"/bin/XDOCK_MANAGER/search.png"
+    SEARCHICON = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/search.png")
 
 
 class XDTApplication(tk.Frame):
