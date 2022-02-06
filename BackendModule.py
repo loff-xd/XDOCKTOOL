@@ -22,9 +22,15 @@ article_lookup_db = []
 selected_manifest = ""
 xdt_userdata_file = "xdt_userdata.json"
 xdt_mobile_scanner_filename = "xdt_mobile.json"
+APP_DIR = os.getcwd()
 
 try:
-    with open(r"application.version") as version_file:
+    if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")):
+        VERSION = os.path.join(APP_DIR, "application.version")
+    else:
+        VERSION = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")
+
+    with open(VERSION) as version_file:
         application_version = version_file.read()
 except Exception as ex:
     panik.log(ex)
