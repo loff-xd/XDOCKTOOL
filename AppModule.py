@@ -4,10 +4,12 @@ from tkinter import ttk, filedialog, messagebox
 import sys as system
 import datetime
 
+import BackendModule
 import BackendModule as backend
 import PanikModule as panik
 import DILModule
 import HRModule
+import ReportModule
 import SearchModule
 
 APP_DIR = os.getcwd()
@@ -40,6 +42,8 @@ class XDTApplication(tk.Frame):
         parent.bind("<F5>", self.interface_update)
         parent.bind("<F6>", self.control_panel.toggle_display_mode)
         parent.bind("<F8>", self.control_panel.generate_pdf)
+        parent.bind("<F10>", self.control_panel.mobile_import)
+        parent.bind("<F11>", self.control_panel.mobile_export)
         parent.bind("<F12>", panik.report)
 
     def interface_update(self, *event):
@@ -114,8 +118,8 @@ class ControlPanel(tk.LabelFrame):
                                                  command=self.parent.interface_update)
         self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
 
-        self.button_help = tk.Button(self, text="Help", command=self.get_help)
-        self.button_help.grid(column=20, row=0, padx=8, pady=4, sticky="e")
+        self.button_reports = tk.Button(self, text="Reports", command=self.open_reports)
+        self.button_reports.grid(column=20, row=0, padx=8, pady=4, sticky="e")
         self.columnconfigure(19, weight=1)
 
         self.button_set_hr["state"] = "disabled"
@@ -125,6 +129,7 @@ class ControlPanel(tk.LabelFrame):
         self.hr_manager = None
         self.dil_manager = None
         self.search_module = None
+        self.reportModule = None
 
         # Set user settings
         try:
@@ -225,6 +230,24 @@ class ControlPanel(tk.LabelFrame):
         except:
             self.display_mode_menu.current(newindex=0)
         main_window.interface_update()
+
+    @staticmethod
+    def mobile_export(*args):
+        if backend.selected_manifest != "":
+            tk.messagebox.showinfo("Mobile Export", "Please select a directory to save the mobile manifest file.")
+            filepath = filedialog.askdirectory()
+            backend.json_save_mobile(backend.selected_manifest, filepath)
+
+    def mobile_import(self, *args):
+        mobile_file = tk.filedialog.askopenfilename(filetypes=[("Mobile Manifest", ".json")])
+        if len(mobile_file) > 0:
+            self.combo_select_manifest.set(BackendModule.json_load_mobile(mobile_file))
+            self.parent.interface_update()
+            root.title(base_title + "Loaded Mobile Manifest")
+
+    def open_reports(self, *args):
+        root.title(base_title + "Launch Reports WIP")
+        #self.reportModule = ReportModule.ReportModule(self)
 
 
 class PreviewFrame(tk.LabelFrame):

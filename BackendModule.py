@@ -8,6 +8,8 @@ import email
 import json
 import os
 import textwrap
+import threading
+import time
 
 from bs4 import BeautifulSoup
 from fpdf import FPDF
@@ -15,21 +17,17 @@ from tabulate import tabulate
 import PanikModule as panik
 
 # CONFIG
-APP_DIR = os.getcwd()
 manifests = []
+article_lookup_db = []
 selected_manifest = ""
-xdt_userdata_file = os.path.join(APP_DIR, "xdt_userdata.json")
-
-if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")):
-    version_file = os.path.join(APP_DIR, "application.version")
-else:
-    version_file = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")
+xdt_userdata_file = "xdt_userdata.json"
+xdt_mobile_scanner_filename = "xdt_mobile.json"
 
 try:
-    with open(version_file) as version_file:
+    with open(r"application.version") as version_file:
         application_version = version_file.read()
-except Exception as e:
-    panik.log(e)
+except Exception as ex:
+    panik.log(ex)
     application_version = "Unknown Version"
 print(application_version)
 
@@ -101,6 +99,9 @@ class SSCC:
         self.is_HR = False
         self.dil_status = ""
         self.dil_comment = ""
+        self.isUnknown = False
+        self.isScanned = False
+        self.scannedManifest = ""
 
     def __eq__(self, other):
         return self.short_sscc == other.short_sscc
@@ -116,7 +117,7 @@ class SSCC:
         for article in self.articles:
             article_list.append(article.export())
         return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "DIL Comment": self.dil_comment,
-                "Articles": article_list}
+                "Articles": article_list, "Scanned": self.isScanned, "Unknown": self.isUnknown, "ScannedInManifest": self.scannedManifest}
 
     def hr_repr(self):
         if self.is_HR:
@@ -128,10 +129,13 @@ class SSCC:
             return "    "
 
     def article_repr(self):
-        if len(self.articles) > 1:
-            return "Multiple"
+        if not self.isUnknown:
+            if len(self.articles) > 1:
+                return "Multiple"
+            else:
+                return self.articles[0].code
         else:
-            return self.articles[0].code
+            return "[UNKNOWN]"
 
     def desc_repr(self):
         if user_settings["hr_disp_mode"] == "Expand All":
@@ -195,7 +199,7 @@ class Article:
         self.code = code
         self.desc = desc
         self.gtin = gtin
-        self.qty = qty
+        self.qty = str(qty)
         self.is_HR = is_HR
         self.dil_status = ""
         self.dil_qty = 0
@@ -293,6 +297,9 @@ def json_load():
                         new_sscc.is_HR = sscc["is_HR"]
                         new_sscc.dil_status = sscc.get("DIL Status", "")
                         new_sscc.dil_comment = sscc.get("DIL Comment", "")
+                        new_sscc.isScanned = sscc.get("Scanned", False)
+                        new_sscc.isUnknown = sscc.get("Unknown", False)
+                        new_sscc.scannedManifest = sscc.get("ScannedInManifest", new_manifest.manifest_id)
                         for article in sscc.get("Articles", []):
                             new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
                                                   article["is_HR"])
@@ -322,6 +329,78 @@ def json_save():
     with open(xdt_userdata_file, "a+") as file:
         json.dump(json_out, file, indent=4)
     os.remove(xdt_userdata_file + ".bak")
+
+
+def json_save_mobile(manifestID, folder):
+    # Save manifests array to JSON for mobile scanner
+    if len(folder) > 0:
+        json_out = {}
+        filepath = os.path.join(folder, xdt_mobile_scanner_filename)
+        manifest = get_manifest_from_id(manifestID)
+        manifest_out = manifest.export()
+        json_out["Manifest"] = manifest_out
+
+        if not os.path.isfile(filepath):
+            with open(filepath, "w+") as file:
+                pass
+        else:
+            os.rename(filepath, (filepath + "_BACKUP.json"))
+
+        with open(filepath, "a+") as file:
+            json.dump(json_out, file, indent=4)
+
+
+def json_load_mobile(mobile_file):
+    # Load the Mobile JSON
+    article_db_refresh()
+
+    with open(mobile_file, "r") as file:
+        xdt_userdata = json.load(file)
+
+    # Convert JSON back into manifest and append to array
+    if xdt_userdata.get("Manifest") is not None:
+        try:
+            entry = xdt_userdata.get("Manifest")
+            new_manifest = Manifest(entry.get("Manifest ID", "000000"))
+            new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
+            for sscc in entry.get("SSCCs", []):
+                new_sscc = SSCC(sscc["SSCC"])
+                new_sscc.is_HR = sscc["is_HR"]
+                new_sscc.dil_status = sscc.get("DIL Status", "")
+                new_sscc.dil_comment = sscc.get("DIL Comment", "")
+                new_sscc.isScanned = sscc.get("Scanned", False)
+                new_sscc.isUnknown = sscc.get("Unknown", False)
+                for article in sscc.get("Articles", []):
+                    new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
+                                          article["is_HR"])
+                    new_article.dil_status = article.get("DIL Status", "")
+                    new_article.dil_qty = article.get("DIL Qty", 0)
+                    new_article.dil_comment = article.get("DIL Comment", "")
+
+                    # IDENTIFY UNKNOWN ARTICLES
+                    if len(new_article.code) == 0:
+                        print(len(new_article.desc))
+                        for db_article in article_lookup_db:
+                            if new_article.gtin == db_article.gtin:
+                                new_article.code = db_article.code
+                                new_article.desc = db_article.desc
+                                break
+                    if len(new_article.code) == 0:
+                        new_article.code = "GTIN: " + new_article.gtin
+
+                    new_sscc.articles.append(new_article)
+                new_manifest.ssccs.append(new_sscc)
+
+            for manifest in manifests:
+                if manifest.manifest_id == new_manifest.manifest_id:
+                    manifests.remove(manifest)
+            manifests.append(new_manifest)
+            json_save()
+
+            return new_manifest.manifest_id
+
+        except Exception as e:
+            panik.log(e)
 
 
 def generate_pdf(manifest, pdf_location):
@@ -357,10 +436,33 @@ def generate_pdf(manifest, pdf_location):
 
         # Open the pdf if user has requested
         if user_settings['open_on_save']:
-            os.startfile(pdf_location)
+            threading.Thread(target=open_saved_file(pdf_location)).start()
 
     except Exception as e:
         panik.log(e)
+
+
+class OpenFailedException(Exception):
+    def __init__(self, message="Failed to open the saved file after 3 tries over 3 seconds"):
+        self.message = message
+        super().__init__(self.message)
+
+
+# noinspection PyBroadException
+def open_saved_file(file_loc):
+    success = False
+    for i in range(0, 3, 1):
+        if os.path.isfile(file_loc):
+            try:
+                os.startfile(file_loc)
+                success = True
+            except:
+                pass
+            break
+        else:
+            time.sleep(1)
+    if not success:
+        panik.log(OpenFailedException)
 
 
 def generate_DIL(manifest_id):
@@ -445,9 +547,14 @@ def format_preview(s_manifest):
     manifest = get_manifest_from_id(s_manifest)
     tb_content = [["Article", "Description".ljust(30), "Qty", "SSCC", "HR?", "Short", "C"]]
     for sscc in sorted(manifest.ssccs):
-        tb_content.append(
-            [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
-             "[  ]"])
+        if sscc.isScanned:
+            tb_content.append(
+                [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
+                 "[OK]"])
+        else:
+            tb_content.append(
+                [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
+                 "[  ]"])
     return tabulate(tb_content, headers="firstrow", tablefmt="fancy_grid")
 
 
@@ -456,6 +563,40 @@ def get_manifest_from_id(manifest_id):
         if manifest.manifest_id == manifest_id:
             return manifest
     return "000000"
+
+
+def article_db_refresh():
+    global article_lookup_db
+    article_lookup_db = []
+    for manifest in manifests:
+        for sscc in manifest.ssccs:
+            for article in sscc.articles:
+                for existing_article in article_lookup_db:
+                    if existing_article.gtin == article.gtin:
+                        article_lookup_db.remove(existing_article)
+                article_lookup_db.append(article)
+
+
+def check_lost_ssccs():
+    lost_ssccs = []
+    found_ssccs = ""
+
+    for manifest in manifests:
+        for sscc in manifest.ssccs:
+            # ADD TO LOST LIST
+            if sscc.isUnknown:
+                lost_ssccs.append(sscc)
+
+    for lost_sscc in lost_ssccs:
+        for manifest in manifests:
+            for sscc in manifest.ssccs:
+                if (lost_sscc.sscc == sscc.sscc) and (lost_sscc.scannedManifest != manifest.manifest_id):
+                    lost_ssccs.remove(lost_sscc)
+                    sscc.isScanned = True
+                    sscc.isUnknown = False
+                    found_ssccs += "SSCC: " + sscc.sscc + " found in: " + sscc.scannedManifest + " instead of: " + manifest.manifest_id + "\n"
+
+    return found_ssccs
 
 
 def last_four(string):
