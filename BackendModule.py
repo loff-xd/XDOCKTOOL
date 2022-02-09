@@ -43,11 +43,11 @@ print(application_version)
 try:
     if not os.path.isfile(xdt_userdata_file):
         os.close(os.open(xdt_userdata_file, os.O_CREAT))
-        with open(xdt_userdata_file, "a+") as file:
-            json.dump({}, file)
+        with open(xdt_userdata_file, "a+") as newfile:
+            json.dump({}, newfile)
 except Exception as ex:
     messagebox.showerror("Error launching application", "Controlled folder access is known to cause this\n" +
-                                 str(traceback.format_exception(sys.exc_info(), value=ex, tb=ex.__traceback__)))
+                         str(traceback.format_exception(sys.exc_info(), value=ex, tb=ex.__traceback__)))
     sys.exit()
 
 # USER SETTING DEFAULTS
@@ -136,7 +136,8 @@ class SSCC:
         for article in self.articles:
             article_list.append(article.export())
         return {"SSCC": self.sscc, "is_HR": self.is_HR, "DIL Status": self.dil_status, "DIL Comment": self.dil_comment,
-                "Articles": article_list, "Scanned": self.isScanned, "Unknown": self.isUnknown, "ScannedInManifest": self.scannedManifest}
+                "Articles": article_list, "Scanned": self.isScanned, "Unknown": self.isUnknown,
+                "ScannedInManifest": self.scannedManifest}
 
     def hr_repr(self):
         if self.is_HR:
