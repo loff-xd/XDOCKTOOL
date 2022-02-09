@@ -8,10 +8,10 @@ from email.message import EmailMessage
 
 APP_DIR = os.getcwd()
 
-if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/error.log")):
+if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\error.log")):
     errorFile = os.path.join(APP_DIR, "error.log")
 else:
-    errorFile = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/error.log")
+    errorFile = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\error.log")
 
 if not os.path.isfile(errorFile):
     with open(errorFile, "w+"):

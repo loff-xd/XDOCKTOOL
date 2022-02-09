@@ -25,10 +25,10 @@ xdt_mobile_scanner_filename = "xdt_mobile.json"
 APP_DIR = os.getcwd()
 
 try:
-    if not os.path.isfile(os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")):
+    if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")):
         VERSION = os.path.join(APP_DIR, "application.version")
     else:
-        VERSION = os.path.join(APP_DIR, "bin/XDOCK_MANAGER/application.version")
+        VERSION = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")
 
     with open(VERSION) as version_file:
         application_version = version_file.read()
