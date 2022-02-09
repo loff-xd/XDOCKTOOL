@@ -247,7 +247,7 @@ class ControlPanel(tk.LabelFrame):
 
     def open_reports(self, *args):
         root.title(base_title + "Launch Reports WIP")
-        #self.reportModule = ReportModule.ReportModule(self)
+        # self.reportModule = ReportModule.ReportModule(self)
 
 
 class PreviewFrame(tk.LabelFrame):

@@ -13,9 +13,12 @@ if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\error.log")):
 else:
     errorFile = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\error.log")
 
-if not os.path.isfile(errorFile):
-    with open(errorFile, "w+"):
-        pass
+try:
+    if not os.path.isfile(errorFile):
+        os.close(os.open(errorFile, os.O_CREAT))
+except Exception as ex:
+    tkinter.messagebox.showerror("Error launching application", "Controlled folder access is known to cause this\n" + str(traceback.format_exception(sys.exc_info(), value=ex, tb=ex.__traceback__)))
+    sys.exit()
 
 
 def log(exception):

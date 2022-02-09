@@ -10,6 +10,9 @@ import os
 import textwrap
 import threading
 import time
+import sys
+from tkinter import messagebox
+import traceback
 
 from bs4 import BeautifulSoup
 from fpdf import FPDF
@@ -36,6 +39,16 @@ except Exception as ex:
     panik.log(ex)
     application_version = "Unknown Version"
 print(application_version)
+
+try:
+    if not os.path.isfile(xdt_userdata_file):
+        os.close(os.open(xdt_userdata_file, os.O_CREAT))
+        with open(xdt_userdata_file, "a+") as file:
+            json.dump({}, file)
+except Exception as ex:
+    messagebox.showerror("Error launching application", "Controlled folder access is known to cause this\n" +
+                                 str(traceback.format_exception(sys.exc_info(), value=ex, tb=ex.__traceback__)))
+    sys.exit()
 
 # USER SETTING DEFAULTS
 user_settings = {
@@ -285,42 +298,39 @@ def json_load():
     # Load the JSON
     global manifests
     manifests.clear()
-    if not os.path.isfile(xdt_userdata_file):
-        with open(xdt_userdata_file, "a+") as file:
-            json.dump({}, file)
-    else:
-        with open(xdt_userdata_file, "r") as file:
-            xdt_userdata = json.load(file)
 
-        # Convert JSON back into manifest array
-        if xdt_userdata.get("Manifests") is not None:
-            try:
-                for entry in xdt_userdata.get("Manifests"):
-                    new_manifest = Manifest(entry.get("Manifest ID", "000000"))
-                    new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
-                    for sscc in entry.get("SSCCs", []):
-                        new_sscc = SSCC(sscc["SSCC"])
-                        new_sscc.is_HR = sscc["is_HR"]
-                        new_sscc.dil_status = sscc.get("DIL Status", "")
-                        new_sscc.dil_comment = sscc.get("DIL Comment", "")
-                        new_sscc.isScanned = sscc.get("Scanned", False)
-                        new_sscc.isUnknown = sscc.get("Unknown", False)
-                        new_sscc.scannedManifest = sscc.get("ScannedInManifest", new_manifest.manifest_id)
-                        for article in sscc.get("Articles", []):
-                            new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
-                                                  article["is_HR"])
-                            new_article.dil_status = article.get("DIL Status", "")
-                            new_article.dil_qty = article.get("DIL Qty", 0)
-                            new_article.dil_comment = article.get("DIL Comment", "")
-                            new_sscc.articles.append(new_article)
-                        new_manifest.ssccs.append(new_sscc)
-                    manifests.append(new_manifest)
+    with open(xdt_userdata_file, "r") as file:
+        xdt_userdata = json.load(file)
 
-                    global user_settings
-                    user_settings.update(xdt_userdata.get("userdata", user_settings))
+    # Convert JSON back into manifest array
+    if xdt_userdata.get("Manifests") is not None:
+        try:
+            for entry in xdt_userdata.get("Manifests"):
+                new_manifest = Manifest(entry.get("Manifest ID", "000000"))
+                new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
+                for sscc in entry.get("SSCCs", []):
+                    new_sscc = SSCC(sscc["SSCC"])
+                    new_sscc.is_HR = sscc["is_HR"]
+                    new_sscc.dil_status = sscc.get("DIL Status", "")
+                    new_sscc.dil_comment = sscc.get("DIL Comment", "")
+                    new_sscc.isScanned = sscc.get("Scanned", False)
+                    new_sscc.isUnknown = sscc.get("Unknown", False)
+                    new_sscc.scannedManifest = sscc.get("ScannedInManifest", new_manifest.manifest_id)
+                    for article in sscc.get("Articles", []):
+                        new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
+                                              article["is_HR"])
+                        new_article.dil_status = article.get("DIL Status", "")
+                        new_article.dil_qty = article.get("DIL Qty", 0)
+                        new_article.dil_comment = article.get("DIL Comment", "")
+                        new_sscc.articles.append(new_article)
+                    new_manifest.ssccs.append(new_sscc)
+                manifests.append(new_manifest)
 
-            except Exception as e:
-                panik.log(e)
+                global user_settings
+                user_settings.update(xdt_userdata.get("userdata", user_settings))
+
+        except Exception as e:
+            panik.log(e)
 
 
 def json_save():
