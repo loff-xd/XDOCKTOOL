@@ -1,7 +1,6 @@
 import tkinter as tk
 
 import AppModule as app
-import BackendModule
 import BackendModule as backend
 from tkinter import messagebox
 
@@ -39,6 +38,6 @@ class ReportModule(tk.Toplevel):
 
     @staticmethod
     def sscc_scan(*args):
-        result = BackendModule.check_lost_ssccs()
+        result = backend.check_lost_ssccs()
         if len(result) > 0:
             messagebox.showinfo("Found Cartons:", result)

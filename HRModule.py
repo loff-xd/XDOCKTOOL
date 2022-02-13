@@ -76,6 +76,7 @@ class HighRiskManager(tk.Toplevel):
                     sscc.is_HR = True
 
         backend.manifests.remove(backend.get_manifest_from_id(backend.selected_manifest))
+        self.manifest.last_modified = backend.current_milli_time()
         backend.manifests.append(self.manifest)
         backend.json_save()
         app.main_window.interface_update()

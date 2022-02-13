@@ -25,6 +25,7 @@ class DILManager(tk.Toplevel):
         self.columnconfigure(1, weight=1)
 
         self.target_manifest = backend.get_manifest_from_id(backend.selected_manifest)
+        self.target_manifest.last_modified = backend.current_milli_time()
 
         self.control_panel = self.SettingsFrame(self)
         self.control_panel.grid(column=0, row=0, padx=10, pady=8, sticky="ew", columnspan=2)

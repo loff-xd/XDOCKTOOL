@@ -87,6 +87,7 @@ class Manifest:
         self.manifest_id = manifest_id
         self.ssccs = []
         self.import_date = ""
+        self.last_modified = ""
 
     def __repr__(self):
         return self.manifest_id
@@ -95,7 +96,7 @@ class Manifest:
         sscc_list = []
         for sscc in self.ssccs:
             sscc_list.append(sscc.export())
-        return {"Manifest ID": self.manifest_id, "Import Date": self.import_date, "SSCCs": sscc_list}
+        return {"Manifest ID": self.manifest_id, "Import Date": self.import_date, "Last Modified": self.last_modified, "SSCCs": sscc_list}
 
     def __eq__(self, other):
         return int(self.manifest_id) == int(other.manifest_id)
@@ -289,19 +290,23 @@ def mhtml_importer(file_path):
 
     if new_manifest not in manifests:
         new_manifest.import_date = str(datetime.date.today())
+        new_manifest.last_modified = str(current_milli_time())
         manifests.append(new_manifest)
 
     json_save()
     return new_manifest.manifest_id
 
 
-def json_load():
+def json_load(*from_string):
     # Load the JSON
     global manifests
     manifests.clear()
 
-    with open(xdt_userdata_file, "r") as file:
-        xdt_userdata = json.load(file)
+    if len(from_string) == 0:
+        with open(xdt_userdata_file, "r") as file:
+            xdt_userdata = json.load(file)
+    else:
+        xdt_userdata = from_string
 
     # Convert JSON back into manifest array
     if xdt_userdata.get("Manifests") is not None:
@@ -309,6 +314,7 @@ def json_load():
             for entry in xdt_userdata.get("Manifests"):
                 new_manifest = Manifest(entry.get("Manifest ID", "000000"))
                 new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
+                new_manifest.last_modified = entry.get("Last Modified", str(current_milli_time()))
                 for sscc in entry.get("SSCCs", []):
                     new_sscc = SSCC(sscc["SSCC"])
                     new_sscc.is_HR = sscc["is_HR"]
@@ -346,78 +352,6 @@ def json_save():
     with open(xdt_userdata_file, "a+") as file:
         json.dump(json_out, file, indent=4)
     os.remove(xdt_userdata_file + ".bak")
-
-
-def json_save_mobile(manifestID, folder):
-    # Save manifests array to JSON for mobile scanner
-    if len(folder) > 0:
-        json_out = {}
-        filepath = os.path.join(folder, xdt_mobile_scanner_filename)
-        manifest = get_manifest_from_id(manifestID)
-        manifest_out = manifest.export()
-        json_out["Manifest"] = manifest_out
-
-        if not os.path.isfile(filepath):
-            with open(filepath, "w+") as file:
-                pass
-        else:
-            os.rename(filepath, (filepath + "_BACKUP.json"))
-
-        with open(filepath, "a+") as file:
-            json.dump(json_out, file, indent=4)
-
-
-def json_load_mobile(mobile_file):
-    # Load the Mobile JSON
-    article_db_refresh()
-
-    with open(mobile_file, "r") as file:
-        xdt_userdata = json.load(file)
-
-    # Convert JSON back into manifest and append to array
-    if xdt_userdata.get("Manifest") is not None:
-        try:
-            entry = xdt_userdata.get("Manifest")
-            new_manifest = Manifest(entry.get("Manifest ID", "000000"))
-            new_manifest.import_date = entry.get("Import Date", str(datetime.date.today()))
-            for sscc in entry.get("SSCCs", []):
-                new_sscc = SSCC(sscc["SSCC"])
-                new_sscc.is_HR = sscc["is_HR"]
-                new_sscc.dil_status = sscc.get("DIL Status", "")
-                new_sscc.dil_comment = sscc.get("DIL Comment", "")
-                new_sscc.isScanned = sscc.get("Scanned", False)
-                new_sscc.isUnknown = sscc.get("Unknown", False)
-                for article in sscc.get("Articles", []):
-                    new_article = Article(article["Code"], article["Desc"], article["GTIN"], article["QTY"],
-                                          article["is_HR"])
-                    new_article.dil_status = article.get("DIL Status", "")
-                    new_article.dil_qty = article.get("DIL Qty", 0)
-                    new_article.dil_comment = article.get("DIL Comment", "")
-
-                    # IDENTIFY UNKNOWN ARTICLES
-                    if len(new_article.code) == 0:
-                        print(len(new_article.desc))
-                        for db_article in article_lookup_db:
-                            if new_article.gtin == db_article.gtin:
-                                new_article.code = db_article.code
-                                new_article.desc = db_article.desc
-                                break
-                    if len(new_article.code) == 0:
-                        new_article.code = "GTIN: " + new_article.gtin
-
-                    new_sscc.articles.append(new_article)
-                new_manifest.ssccs.append(new_sscc)
-
-            for manifest in manifests:
-                if manifest.manifest_id == new_manifest.manifest_id:
-                    manifests.remove(manifest)
-            manifests.append(new_manifest)
-            json_save()
-
-            return new_manifest.manifest_id
-
-        except Exception as e:
-            panik.log(e)
 
 
 def generate_pdf(manifest, pdf_location):
@@ -567,7 +501,7 @@ def format_preview(s_manifest):
         if sscc.isScanned:
             tb_content.append(
                 [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
-                 "[OK]"])
+                 "[██]"])
         else:
             tb_content.append(
                 [sscc.article_repr(), sscc.desc_repr(), sscc.qty_repr(), sscc.sscc, sscc.hr_repr(), sscc.short_sscc,
@@ -618,3 +552,6 @@ def check_lost_ssccs():
 
 def last_four(string):
     return str(string)[-4:]
+
+def current_milli_time():
+    return round(time.time() * 1000)
