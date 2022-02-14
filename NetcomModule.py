@@ -8,13 +8,6 @@ import tkinter as tk
 import BackendModule as backend
 import AppModule as app
 
-s = socket.socket()
-host = socket.gethostbyname(socket.gethostname())
-port = 80
-running = True
-s.bind((host, port))
-
-
 class NetcomModule(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
@@ -55,17 +48,28 @@ class NetcomModule(tk.Toplevel):
             manifest_out.append(manifest.export())
             json_out["Manifests"] = manifest_out
 
-        data = str.encode(json.dumps(json_out))
+        data_out = str.encode(json.dumps(json_out) + "\n")
 
-        s.listen()
+        s.listen(1)
         conn, address = s.accept()
         if running:
+            # DATA OUT
             print("Connection from: " + str(address))
+            conn.send(str(len(data_out)).encode() + "\n".encode())
+            conn.sendall(data_out)
+            print("sent: " + str(len(data_out)) + " bytes")
 
-            conn.sendall(data)
+            # DATA IN
+            data_in = ""
+            while running:
+                recv = conn.recv(256)
+                if not recv:
+                    break
+                data_in += bytes.decode(recv)
+            print("received: " + str(len(data_in)) + " bytes")
 
-            print("sent: " + str(len(data)) + " bytes")
         conn.close()
+        print("Transaction completed")
         self.destroy()
 
     def stop_comm_thread(self):
@@ -87,3 +91,20 @@ class NetcomModule(tk.Toplevel):
 
         print("Got: " + str(len(data)) + " chars")
         s.close()
+
+
+def get_local_wireless_ip_windows():
+    import subprocess
+    arp = subprocess.check_output('arp -a')
+    local_ipv4 = []
+    for line in arp.split('\n'.encode()):
+        if 'Interface'.encode() in line:
+            local_ipv4.append(line.split(':'.encode())[1].split('---'.encode())[0].strip())
+    return local_ipv4[-1]
+
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+host = get_local_wireless_ip_windows().decode()
+port = 7700
+running = True
+s.bind(("", port))
