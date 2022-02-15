@@ -8,12 +8,12 @@ import tkinter as tk
 import BackendModule as backend
 import AppModule as app
 
+
 class NetcomModule(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        self.qr = pyqrcode.create(host + ";" + str(port))
-        self.qrimg = tk.BitmapImage(data=self.qr.xbm(scale=6))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         self.parent = parent
 
@@ -30,16 +30,14 @@ class NetcomModule(tk.Toplevel):
 
         self.bind('<Escape>', lambda e: self.destroy())
 
-        tk.Label(self, text="Scan QR code with mobile app to sync:").grid(column=0, row=0)
+        tk.Label(self, text="Enter scanner IP:").grid(column=0, row=0)
 
-        self.qrimage = tk.Canvas(self, width=200, height=200)
-        self.qrimage.grid(column=0, row=1)
-        self.qrimage.create_image(0, 0, image=self.qrimg, anchor="nw")
+        self.ip_entry = tk.Entry(self)
+        self.ip_entry.grid(column=0, row=1)
 
-        global running
-        running = True
-        comm_thread = threading.Thread(target=self.start_comm_server)
-        comm_thread.start()
+        dialog_close_button = tk.Button(self, text="Sync", command=self.begin_sync)
+        dialog_close_button.grid(column=0, row=2)
+
 
     def start_comm_server(self):
         json_out = {}
@@ -50,25 +48,24 @@ class NetcomModule(tk.Toplevel):
 
         data_out = str.encode(json.dumps(json_out) + "\n")
 
-        s.listen(1)
-        conn, address = s.accept()
+        self.s.connect((host, port))
         if running:
             # DATA OUT
-            print("Connection from: " + str(address))
-            conn.send(str(len(data_out)).encode() + "\n".encode())
-            conn.sendall(data_out)
+            print("Connection to: " + str("10.203.1.223"))
+            self.s.send(str(len(data_out)).encode() + "\n".encode())
+            self.s.sendall(data_out)
             print("sent: " + str(len(data_out)) + " bytes")
 
             # DATA IN
             data_in = ""
             while running:
-                recv = conn.recv(256)
+                recv = self.s.recv(256)
                 if not recv:
                     break
                 data_in += bytes.decode(recv)
             print("received: " + str(len(data_in)) + " bytes")
 
-        conn.close()
+        self.s.close()
         print("Transaction completed")
         self.destroy()
 
@@ -76,21 +73,16 @@ class NetcomModule(tk.Toplevel):
         print("netcom stopped")
         global running
         running = False
-        stop_s = socket.socket()
-        stop_s.connect((host, port))
-        stop_s.close()
+        self.s.close()
         self.destroy()
 
-    def client(self):
-        data = ""
-        while True:
-            recv = s.recv(8192)
-            if not recv:
-                break
-            data += bytes.decode(recv)
-
-        print("Got: " + str(len(data)) + " chars")
-        s.close()
+    def begin_sync(self, *args):
+        global host
+        host = self.ip_entry.get()
+        global running
+        running = True
+        comm_thread = threading.Thread(target=self.start_comm_server)
+        comm_thread.start()
 
 
 def get_local_wireless_ip_windows():
@@ -103,8 +95,6 @@ def get_local_wireless_ip_windows():
     return local_ipv4[-1]
 
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = get_local_wireless_ip_windows().decode()
+host = ""
 port = 7700
 running = True
-s.bind(("", port))
