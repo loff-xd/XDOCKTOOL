@@ -418,6 +418,7 @@ def open_saved_file(file_loc):
 
 def generate_DIL(manifest_id):
     manifest = get_manifest_from_id(manifest_id)
+    update_manifest_timestamp(manifest_id)
 
     for sscc in manifest.ssccs:
         filepath = os.path.join(user_settings.get("DIL folder"), str(manifest_id))
@@ -516,6 +517,12 @@ def get_manifest_from_id(manifest_id):
     return "000000"
 
 
+def update_manifest_timestamp(manifest_id):
+    for manifest in manifests:
+        if manifest.manifest_id == manifest_id:
+            manifest.last_modified = str(current_milli_time())
+
+
 def article_db_refresh():
     global article_lookup_db
     article_lookup_db = []
@@ -552,6 +559,7 @@ def check_lost_ssccs():
 
 def last_four(string):
     return str(string)[-4:]
+
 
 def current_milli_time():
     return round(time.time() * 1000)

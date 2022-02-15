@@ -2,8 +2,8 @@ import json
 import socket
 import threading
 
-import pyqrcode
 import tkinter as tk
+from tkinter import messagebox
 
 import BackendModule as backend
 import AppModule as app
@@ -18,7 +18,7 @@ class NetcomModule(tk.Toplevel):
         self.parent = parent
 
         self.title("Mobile Sync")
-        app.set_centre_geometry(self, 300, 500)
+        app.set_centre_geometry(self, 300, 300)
         app.root.grab_release()
         self.grab_set()
         self.focus()
@@ -38,7 +38,6 @@ class NetcomModule(tk.Toplevel):
         dialog_close_button = tk.Button(self, text="Sync", command=self.begin_sync)
         dialog_close_button.grid(column=0, row=2)
 
-
     def start_comm_server(self):
         json_out = {}
         manifest_out = []
@@ -47,14 +46,26 @@ class NetcomModule(tk.Toplevel):
             json_out["Manifests"] = manifest_out
 
         data_out = str.encode(json.dumps(json_out) + "\n")
+        timestamp_out = "0"
+        for manifest in backend.manifests:
+            if int(manifest.last_modified) > int(timestamp_out):
+                timestamp_out = manifest.last_modified
 
-        self.s.connect((host, port))
+        try:
+            self.s.settimeout(5)
+            self.s.connect((host, port))
+        except OSError as e:
+            tk.messagebox.showerror("Connection Failed", "Connection to scanner was unsuccessful")
+
         if running:
             # DATA OUT
-            print("Connection to: " + str("10.203.1.223"))
-            self.s.send(str(len(data_out)).encode() + "\n".encode())
+            print("Connection to: " + host)
+            self.s.sendall((str(timestamp_out) + "\n").encode())
             self.s.sendall(data_out)
             print("sent: " + str(len(data_out)) + " bytes")
+
+            # DATA IN
+            timestamp_in = "0"
 
             # DATA IN
             data_in = ""
@@ -64,6 +75,15 @@ class NetcomModule(tk.Toplevel):
                     break
                 data_in += bytes.decode(recv)
             print("received: " + str(len(data_in)) + " bytes")
+            timestamp_in = data_in[0]
+
+            print(str(timestamp_in) + " > " + str(timestamp_out))
+
+            if int(timestamp_in) > int(timestamp_out):
+                print("Doing update")
+                backend.json_load(data_in[1])
+            else:
+                print("Up to date")
 
         self.s.close()
         print("Transaction completed")

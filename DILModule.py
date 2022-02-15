@@ -119,6 +119,8 @@ class DILManager(tk.Toplevel):
 
             selected_article = []
 
+            backend.update_manifest_timestamp(backend.selected_manifest)
+
             if len(self.article_frame.article_listbox.curselection()) > 0:
                 selected_article = self.article_frame.article_listbox.get(
                     self.article_frame.article_listbox.curselection()).replace("*", "")
