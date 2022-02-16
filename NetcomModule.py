@@ -18,7 +18,7 @@ class NetcomModule(tk.Toplevel):
         self.parent = parent
 
         self.title("Mobile Sync")
-        app.set_centre_geometry(self, 300, 300)
+        app.set_centre_geometry(self, 300, 150)
         app.root.grab_release()
         self.grab_set()
         self.focus()
@@ -30,13 +30,14 @@ class NetcomModule(tk.Toplevel):
 
         self.bind('<Escape>', lambda e: self.destroy())
 
-        tk.Label(self, text="Enter scanner IP:").grid(column=0, row=0)
+        tk.Label(self, text="Enter scanner IP:").grid(column=0, row=0, pady=16)
 
         self.ip_entry = tk.Entry(self)
         self.ip_entry.grid(column=0, row=1)
+        self.ip_entry["text"] = backend.user_settings.get("last_ip")
 
         dialog_close_button = tk.Button(self, text="Sync", command=self.begin_sync)
-        dialog_close_button.grid(column=0, row=2)
+        dialog_close_button.grid(column=0, row=2, pady=16)
 
     def start_comm_server(self):
         json_out = {}
@@ -75,13 +76,17 @@ class NetcomModule(tk.Toplevel):
                     break
                 data_in += bytes.decode(recv)
             print("received: " + str(len(data_in)) + " bytes")
+
+            data_in = data_in.split('\n')
+            print(data_in)
+
             timestamp_in = data_in[0]
 
             print(str(timestamp_in) + " > " + str(timestamp_out))
 
             if int(timestamp_in) > int(timestamp_out):
                 print("Doing update")
-                backend.json_load(data_in[1])
+                backend.json_load(str(data_in[1]))
             else:
                 print("Up to date")
 
@@ -99,6 +104,8 @@ class NetcomModule(tk.Toplevel):
     def begin_sync(self, *args):
         global host
         host = self.ip_entry.get()
+        backend.user_settings["last_ip"] = host
+        backend.json_save()
         global running
         running = True
         comm_thread = threading.Thread(target=self.start_comm_server)

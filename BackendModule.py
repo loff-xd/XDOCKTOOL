@@ -55,7 +55,8 @@ user_settings = {
     "hr_disp_mode": "Expand None",
     "open_on_save": True,
     "hr_articles": [],
-    "DIL folder": ""
+    "DIL folder": "",
+    "last_ip": ""
 }
 
 x_mgr_ascii = "@@(//@@@@@@@@@@@@@@@@@@(/////////////////(@@@@@@@@@@@@@@@@@&///@@@@@@(///%@@@@@%/////(@@@@@@@@@(////#@@@@@@@@@@@&/////#@\n\
@@ -306,7 +307,7 @@ def json_load(*from_string):
         with open(xdt_userdata_file, "r") as file:
             xdt_userdata = json.load(file)
     else:
-        xdt_userdata = from_string
+        xdt_userdata = json.loads(from_string[0])
 
     # Convert JSON back into manifest array
     if xdt_userdata.get("Manifests") is not None:
