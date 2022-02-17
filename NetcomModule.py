@@ -30,14 +30,15 @@ class NetcomModule(tk.Toplevel):
 
         self.bind('<Escape>', lambda e: self.destroy())
 
-        tk.Label(self, text="Enter scanner IP:").grid(column=0, row=0, pady=16)
+        self.statuslabel = tk.Label(self, text="Enter Scanner IP:")
+        self.statuslabel.grid(column=0, row=0, pady=16)
 
         self.ip_entry = tk.Entry(self)
         self.ip_entry.grid(column=0, row=1)
         self.ip_entry["text"] = backend.user_settings.get("last_ip")
 
-        dialog_close_button = tk.Button(self, text="Sync", command=self.begin_sync)
-        dialog_close_button.grid(column=0, row=2, pady=16)
+        self.sync_button = tk.Button(self, text="Sync", command=self.begin_sync)
+        self.sync_button.grid(column=0, row=2, pady=16)
 
     def start_comm_server(self):
         json_out = {}
@@ -102,8 +103,11 @@ class NetcomModule(tk.Toplevel):
         self.destroy()
 
     def begin_sync(self, *args):
+        self.statuslabel["text"] = "Please wait..."
+        self.sync_button["state"] = "disabled"
         global host
         host = self.ip_entry.get()
+        self.ip_entry["state"] = "disabled"
         backend.user_settings["last_ip"] = host
         backend.json_save()
         global running

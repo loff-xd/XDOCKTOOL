@@ -1,15 +1,14 @@
+import datetime
 import os
+import sys as system
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import sys as system
-import datetime
 
 import BackendModule as backend
-import NetcomModule
-import PanikModule as panik
 import DILModule
 import HRModule
-import ReportModule
+import NetcomModule
+import PanikModule as panik
 import SearchModule
 
 APP_DIR = os.getcwd()
@@ -25,14 +24,28 @@ class XDTApplication(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        self.columnconfigure(0, weight=1)
+        self.columnconfigure(2, weight=1)
         self.rowconfigure(1, weight=1)
 
         self.control_panel = ControlPanel(self, text="Commands")
-        self.control_panel.grid(column=0, row=0, padx=8, sticky="nsew")
+        self.control_panel.grid(column=2, row=0, padx=8, sticky="nsew")
 
         self.preview_frame = PreviewFrame(self, text="No manifest loaded")
-        self.preview_frame.grid(column=0, row=1, sticky="nsew", padx=8, pady=4)
+        self.preview_frame.grid(column=2, row=1, sticky="nsew", padx=8, pady=4)
+
+        self.manifest_frame = tk.LabelFrame(self, text="Manifests:")
+        self.manifest_frame.grid(row=0, column=0, sticky="nsew", rowspan=2, padx=4, pady=4)
+        self.manifest_frame.rowconfigure(0, weight=1)
+
+        self.combo_content = tk.StringVar()
+        self.combo_content.set(sorted(backend.manifests))
+        self.combo_select_manifest = tk.Listbox(self.manifest_frame, selectmode="single", listvariable=self.combo_content)
+        self.combo_select_manifest.grid(column=0, row=0, padx=(10, 4), pady=4, sticky="ns")
+        self.combo_select_manifest.bind("<<ListboxSelect>>", self.interface_update)
+
+        self.listbox_scroll = tk.Scrollbar(self.manifest_frame, command=self.combo_select_manifest.yview)
+        self.listbox_scroll.grid(column=1, row=0, pady=4, sticky="ns")
+        self.combo_select_manifest['yscrollcommand'] = self.listbox_scroll.set
 
         parent.bind("<F1>", self.control_panel.get_help)
         parent.bind("<F2>", self.control_panel.load_recent)
@@ -44,9 +57,18 @@ class XDTApplication(tk.Frame):
         parent.bind("<F8>", self.control_panel.generate_pdf)
         parent.bind("<F12>", panik.report)
 
+    def select_manifest_in_listbox(self, manifest_id):
+        self.combo_select_manifest.selection_clear(0, tk.END)
+        for i in range(0, self.combo_select_manifest.size()):
+            print(self.combo_select_manifest.get(i))
+            if self.combo_select_manifest.get(i) == manifest_id:
+                self.combo_select_manifest.select_set(i)
+                self.combo_select_manifest.activate(i)
+                break
+
     def interface_update(self, *event):
-        backend.selected_manifest = self.control_panel.combo_select_manifest.get()
-        self.control_panel.combo_select_manifest["values"] = sorted(backend.manifests)
+        backend.selected_manifest = self.combo_select_manifest.get(self.combo_select_manifest.curselection())
+        self.combo_content.set(sorted(backend.manifests))
 
         backend.user_settings["hr_disp_mode"] = str(self.control_panel.var_display_mode.get())
         backend.user_settings["open_on_save"] = bool(self.control_panel.var_open_on_save.get())
@@ -79,16 +101,10 @@ class ControlPanel(tk.LabelFrame):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        self.combo_select_manifest = ttk.Combobox(self)
-        self.combo_select_manifest.grid(column=0, row=0, padx=(10, 4), pady=4)
-        self.combo_select_manifest["values"] = sorted(backend.manifests)
-        self.combo_select_manifest.bind("<<ComboboxSelected>>", self.parent.interface_update)
-        self.combo_select_manifest.bind("<Return>", self.parent.interface_update)
-
         self.button_search_image = tk.PhotoImage(file=SEARCHICON)
         self.button_search = tk.Button(self, image=self.button_search_image, command=self.launch_search_module,
                                        height=20, width=20)
-        self.button_search.grid(column=1, row=0, padx=(0, 4), pady=4)
+        self.button_search.grid(column=1, row=0, padx=(8, 4), pady=4)
 
         self.button_open = tk.Button(self, text="Import SAP MHTML", command=self.open_mhtml)
         self.button_open.grid(column=2, row=0, padx=(4, 2), pady=4)
@@ -150,7 +166,8 @@ class ControlPanel(tk.LabelFrame):
                     if manifest.import_date > recent.import_date:
                         recent = manifest
 
-                self.combo_select_manifest.set(recent.manifest_id)
+                self.parent.combo_content.set(sorted(backend.manifests))
+                self.parent.select_manifest_in_listbox(recent.manifest_id)
                 self.parent.interface_update()
                 root.title(base_title + "Loaded recent")
 
@@ -162,7 +179,8 @@ class ControlPanel(tk.LabelFrame):
             root.title(base_title + "Open MHTML")
             mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
             imported_manifest_id = backend.mhtml_importer(mhtml_location)
-            self.combo_select_manifest.set(imported_manifest_id)
+            self.parent.combo_content.set(sorted(backend.manifests))
+            self.parent.select_manifest_in_listbox(imported_manifest_id)
             main_window.interface_update()
         except Exception as e:
             panik.log(e)
@@ -299,7 +317,7 @@ def do_argv_check():
             imported_manifest_id = backend.mhtml_importer(system.argv[1])
             main_window.interface_update()
 
-            main_window.control_panel.combo_select_manifest.set(imported_manifest_id)
+            main_window.select_manifest_in_listbox(imported_manifest_id)
             main_window.interface_update()
         except Exception as e:
             panik.log(e)
@@ -329,11 +347,11 @@ root = tk.Tk()
 base_title = "X-Dock Manager - " + backend.application_version + " - "
 root.title(base_title + "Ready")
 root.iconbitmap("XDMGR.ico")
-set_centre_geometry(root, 1024, 768)
+set_centre_geometry(root, 1200, 660)
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 root.wm_protocol("WM_DELETE_WINDOW", lambda: exit_app())
-root.minsize(1024, 768)
+root.minsize(1200, 660)
 
 main_window = XDTApplication(root)
 main_window.grid(column=0, row=0, sticky="nsew")

@@ -290,6 +290,7 @@ def mhtml_importer(file_path):
             article.do_HR_check()
 
     if new_manifest not in manifests:
+        # TODO RELOAD NEW MANIFEST COPY
         new_manifest.import_date = str(datetime.date.today())
         new_manifest.last_modified = str(current_milli_time())
         manifests.append(new_manifest)
