@@ -162,7 +162,7 @@ class ControlPanel(tk.LabelFrame):
                 # Most recent
                 recent = backend.manifests[0]
                 for manifest in backend.manifests:
-                    if manifest.import_date > recent.import_date:
+                    if int(manifest.manifest_id) > int(recent.manifest_id):
                         recent = manifest
 
                 self.parent.combo_content.set(sorted(backend.manifests))
@@ -278,7 +278,7 @@ class PreviewFrame(tk.LabelFrame):
             if len(backend.manifests) > 0:
                 recent = backend.manifests[0]
                 for manifest in backend.manifests:
-                    if manifest.import_date > recent.import_date:
+                    if int(manifest.manifest_id) > int(recent.manifest_id):
                         recent = manifest
                 start_page += "\n Most recent manifest: " + recent.manifest_id + " (" + recent.import_date + ")\n"
 
