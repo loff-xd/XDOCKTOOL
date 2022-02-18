@@ -11,6 +11,7 @@ import textwrap
 import threading
 import time
 import sys
+import tkinter.messagebox
 from tkinter import messagebox
 import traceback
 
@@ -103,7 +104,7 @@ class Manifest:
         return int(self.manifest_id) == int(other.manifest_id)
 
     def __lt__(self, other):
-        return int(self.manifest_id) < int(other.manifest_id)
+        return int(self.manifest_id) > int(other.manifest_id)
 
     def get_sscc(self, sscc_id):
         for sscc in self.ssccs:
@@ -289,13 +290,24 @@ def mhtml_importer(file_path):
         for article in sscc.articles:
             article.do_HR_check()
 
-    if new_manifest not in manifests:
-        # TODO RELOAD NEW MANIFEST COPY
+    if new_manifest.manifest_id in [manifest.manifest_id for manifest in manifests]:
+        result = tkinter.messagebox.askyesnocancel("Duplicate manifest", "Manifest " + new_manifest.manifest_id + " already exits, would you like to replace it?")
+        print(result)
+        if result:
+            manifests.remove(get_manifest_from_id(new_manifest.manifest_id))
+            new_manifest.import_date = str(datetime.date.today())
+            new_manifest.last_modified = str(current_milli_time())
+            manifests.append(new_manifest)
+            json_save()
+            print("Replaced manifest: " + new_manifest.manifest_id)
+        else:
+            pass
+    else:
         new_manifest.import_date = str(datetime.date.today())
         new_manifest.last_modified = str(current_milli_time())
         manifests.append(new_manifest)
+        json_save()
 
-    json_save()
     return new_manifest.manifest_id
 
 

@@ -30,12 +30,12 @@ class NetcomModule(tk.Toplevel):
 
         self.bind('<Escape>', lambda e: self.destroy())
 
-        self.statuslabel = tk.Label(self, text="Enter Scanner IP:")
-        self.statuslabel.grid(column=0, row=0, pady=16)
+        self.status_label = tk.Label(self, text="Enter Scanner IP:")
+        self.status_label.grid(column=0, row=0, pady=16)
 
         self.ip_entry = tk.Entry(self)
         self.ip_entry.grid(column=0, row=1)
-        self.ip_entry["text"] = backend.user_settings.get("last_ip")
+        self.ip_entry.insert(0, backend.user_settings.get("last_ip"))
 
         self.sync_button = tk.Button(self, text="Sync", command=self.begin_sync)
         self.sync_button.grid(column=0, row=2, pady=16)
@@ -56,43 +56,43 @@ class NetcomModule(tk.Toplevel):
         try:
             self.s.settimeout(5)
             self.s.connect((host, port))
+
+            if running:
+                # DATA OUT
+                print("Connection to: " + host)
+                self.s.sendall((str(timestamp_out) + "\n").encode())
+                self.s.sendall(data_out)
+                print("sent: " + str(len(data_out)) + " bytes")
+
+                # DATA IN
+                timestamp_in = "0"
+
+                # DATA IN
+                data_in = ""
+                while running:
+                    recv = self.s.recv(256)
+                    if not recv:
+                        break
+                    data_in += bytes.decode(recv)
+                print("received: " + str(len(data_in)) + " bytes")
+
+                data_in = data_in.split('\n')
+
+                timestamp_in = data_in[0]
+
+                print(str(timestamp_in) + " > " + str(timestamp_out))
+
+                if int(timestamp_in) > int(timestamp_out):
+                    print("Doing update")
+                    backend.json_load(str(data_in[1]))
+                else:
+                    print("Up to date")
+
         except OSError as e:
-            tk.messagebox.showerror("Connection Failed", "Connection to scanner was unsuccessful")
+            tk.messagebox.showerror("Connection Failed", "Connection to scanner was unsuccessful.")
 
-        if running:
-            # DATA OUT
-            print("Connection to: " + host)
-            self.s.sendall((str(timestamp_out) + "\n").encode())
-            self.s.sendall(data_out)
-            print("sent: " + str(len(data_out)) + " bytes")
-
-            # DATA IN
-            timestamp_in = "0"
-
-            # DATA IN
-            data_in = ""
-            while running:
-                recv = self.s.recv(256)
-                if not recv:
-                    break
-                data_in += bytes.decode(recv)
-            print("received: " + str(len(data_in)) + " bytes")
-
-            data_in = data_in.split('\n')
-            print(data_in)
-
-            timestamp_in = data_in[0]
-
-            print(str(timestamp_in) + " > " + str(timestamp_out))
-
-            if int(timestamp_in) > int(timestamp_out):
-                print("Doing update")
-                backend.json_load(str(data_in[1]))
-            else:
-                print("Up to date")
-
+        print("Transaction finished")
         self.s.close()
-        print("Transaction completed")
         self.destroy()
 
     def stop_comm_thread(self):
@@ -103,7 +103,7 @@ class NetcomModule(tk.Toplevel):
         self.destroy()
 
     def begin_sync(self, *args):
-        self.statuslabel["text"] = "Please wait..."
+        self.status_label["text"] = "Please wait..."
         self.sync_button["state"] = "disabled"
         global host
         host = self.ip_entry.get()

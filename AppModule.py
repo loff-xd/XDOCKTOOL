@@ -39,7 +39,7 @@ class XDTApplication(tk.Frame):
 
         self.combo_content = tk.StringVar()
         self.combo_content.set(sorted(backend.manifests))
-        self.combo_select_manifest = tk.Listbox(self.manifest_frame, selectmode="single", listvariable=self.combo_content)
+        self.combo_select_manifest = tk.Listbox(self.manifest_frame, selectmode="single", listvariable=self.combo_content, exportselection=False)
         self.combo_select_manifest.grid(column=0, row=0, padx=(10, 4), pady=4, sticky="ns")
         self.combo_select_manifest.bind("<<ListboxSelect>>", self.interface_update)
 
@@ -60,7 +60,6 @@ class XDTApplication(tk.Frame):
     def select_manifest_in_listbox(self, manifest_id):
         self.combo_select_manifest.selection_clear(0, tk.END)
         for i in range(0, self.combo_select_manifest.size()):
-            print(self.combo_select_manifest.get(i))
             if self.combo_select_manifest.get(i) == manifest_id:
                 self.combo_select_manifest.select_set(i)
                 self.combo_select_manifest.activate(i)
