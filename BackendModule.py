@@ -27,6 +27,9 @@ selected_manifest = ""
 xdt_userdata_file = "xdt_userdata.json"
 xdt_mobile_scanner_filename = "xdt_mobile.json"
 APP_DIR = os.getcwd()
+io_thread = None
+io_lock = False
+
 
 try:
     if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")):
@@ -298,7 +301,7 @@ def mhtml_importer(file_path):
             new_manifest.import_date = str(datetime.date.today())
             new_manifest.last_modified = str(current_milli_time())
             manifests.append(new_manifest)
-            json_save()
+            json_threaded_save()
             print("Replaced manifest: " + new_manifest.manifest_id)
         else:
             pass
@@ -306,14 +309,14 @@ def mhtml_importer(file_path):
         new_manifest.import_date = str(datetime.date.today())
         new_manifest.last_modified = str(current_milli_time())
         manifests.append(new_manifest)
-        json_save()
+        json_threaded_save()
 
     return new_manifest.manifest_id
 
 
 def json_load(*from_string):
     # Load the JSON
-    global manifests
+    global manifests, io_lock
     manifests.clear()
 
     if len(from_string) == 0:
@@ -347,11 +350,20 @@ def json_load(*from_string):
                     new_manifest.ssccs.append(new_sscc)
                 manifests.append(new_manifest)
 
-                global user_settings
-                user_settings.update(xdt_userdata.get("userdata", user_settings))
+            global user_settings
+            user_settings.update(xdt_userdata.get("userdata", user_settings))
+
+            io_lock = False
 
         except Exception as e:
             panik.log(e)
+            io_lock = False
+
+
+def json_threaded_save():
+    global io_thread
+    io_thread = threading.Thread(target=json_save)
+    io_thread.start()
 
 
 def json_save():

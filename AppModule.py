@@ -1,7 +1,10 @@
+import cProfile
 import datetime
 import os
 import sys as system
+import threading
 import tkinter as tk
+from time import sleep
 from tkinter import ttk, filedialog, messagebox
 
 import BackendModule as backend
@@ -12,6 +15,7 @@ import PanikModule as panik
 import SearchModule
 
 APP_DIR = os.getcwd()
+profiling = False
 
 if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\search.png")):
     SEARCHICON = os.path.join(APP_DIR, "search.png")
@@ -21,7 +25,8 @@ else:
 
 class XDTApplication(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        # tk.Frame.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
         self.parent = parent
 
         self.columnconfigure(2, weight=1)
@@ -39,7 +44,8 @@ class XDTApplication(tk.Frame):
 
         self.combo_content = tk.StringVar()
         self.combo_content.set(sorted(backend.manifests))
-        self.combo_select_manifest = tk.Listbox(self.manifest_frame, selectmode="single", listvariable=self.combo_content, exportselection=False)
+        self.combo_select_manifest = tk.Listbox(self.manifest_frame, selectmode="single",
+                                                listvariable=self.combo_content, exportselection=False)
         self.combo_select_manifest.grid(column=0, row=0, padx=(10, 4), pady=4, sticky="ns")
         self.combo_select_manifest.bind("<<ListboxSelect>>", self.interface_update)
 
@@ -47,15 +53,18 @@ class XDTApplication(tk.Frame):
         self.listbox_scroll.grid(column=1, row=0, pady=4, sticky="ns")
         self.combo_select_manifest['yscrollcommand'] = self.listbox_scroll.set
 
-        parent.bind("<F1>", self.control_panel.get_help)
-        parent.bind("<F2>", self.control_panel.load_recent)
-        parent.bind("<Insert>", self.control_panel.open_mhtml)
-        parent.bind("<F3>", self.control_panel.launch_high_risk_manager)
-        parent.bind("<F4>", self.control_panel.launch_dil_manager)
-        parent.bind("<F5>", self.interface_update)
-        parent.bind("<F6>", self.control_panel.toggle_display_mode)
-        parent.bind("<F8>", self.control_panel.generate_pdf)
-        parent.bind("<F12>", panik.report)
+        self.status_label = tk.Label(self, text="Reading application data...")
+        self.status_label.grid(column=0, row=3, columnspan=3, sticky="w", padx=8)
+
+        root.bind("<F1>", self.control_panel.get_help)
+        root.bind("<F2>", self.control_panel.load_recent)
+        root.bind("<Insert>", self.control_panel.open_mhtml)
+        root.bind("<F3>", self.control_panel.launch_high_risk_manager)
+        root.bind("<F4>", self.control_panel.launch_dil_manager)
+        root.bind("<F5>", self.interface_update)
+        root.bind("<F6>", self.control_panel.toggle_display_mode)
+        root.bind("<F8>", self.control_panel.generate_pdf)
+        root.bind("<F12>", panik.report)
 
     def select_manifest_in_listbox(self, manifest_id):
         self.combo_select_manifest.selection_clear(0, tk.END)
@@ -66,12 +75,15 @@ class XDTApplication(tk.Frame):
                 break
 
     def interface_update(self, *event):
-        backend.selected_manifest = self.combo_select_manifest.get(self.combo_select_manifest.curselection())
+        if len(self.combo_select_manifest.curselection()) > 0:
+            backend.selected_manifest = self.combo_select_manifest.get(self.combo_select_manifest.curselection())
         self.combo_content.set(sorted(backend.manifests))
 
         backend.user_settings["hr_disp_mode"] = str(self.control_panel.var_display_mode.get())
         backend.user_settings["open_on_save"] = bool(self.control_panel.var_open_on_save.get())
         backend.user_settings = backend.user_settings
+
+        main_window.set_status("Ready.", False)
 
         if len(backend.selected_manifest) > 0 and len(
                 [x for x in backend.manifests if x.manifest_id == backend.selected_manifest]) > 0:
@@ -93,11 +105,18 @@ class XDTApplication(tk.Frame):
             self.preview_frame.start_page()
             self.preview_frame['text'] = "No manifest loaded"
 
+    def set_status(self, text, progress):
+        if progress:
+            self.status_label["text"] = text
+        else:
+            self.status_label["text"] = text
+
 
 # noinspection PyBroadException
 class ControlPanel(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        # tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
         self.parent = parent
 
         self.button_search_image = tk.PhotoImage(file=SEARCHICON)
@@ -168,18 +187,18 @@ class ControlPanel(tk.LabelFrame):
                 self.parent.combo_content.set(sorted(backend.manifests))
                 self.parent.select_manifest_in_listbox(recent.manifest_id)
                 self.parent.interface_update()
-                root.title(base_title + "Loaded recent")
 
             except Exception as e:
                 panik.log(e)
 
     def open_mhtml(self, *args):
         try:
-            root.title(base_title + "Open MHTML")
+            main_window.set_status("Open MHTML...", False)
             mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
-            imported_manifest_id = backend.mhtml_importer(mhtml_location)
-            self.parent.combo_content.set(sorted(backend.manifests))
-            self.parent.select_manifest_in_listbox(imported_manifest_id)
+            if len(mhtml_location) > 0:
+                imported_manifest_id = backend.mhtml_importer(mhtml_location)
+                self.parent.combo_content.set(sorted(backend.manifests))
+                self.parent.select_manifest_in_listbox(imported_manifest_id)
             main_window.interface_update()
         except Exception as e:
             panik.log(e)
@@ -187,7 +206,7 @@ class ControlPanel(tk.LabelFrame):
     @staticmethod
     def generate_pdf(*args):
         if backend.selected_manifest != "":
-            root.title(base_title + "Generate PDF")
+            main_window.set_status("Generate PDF...", False)
             manifest = backend.get_manifest_from_id(backend.selected_manifest)
             save_location = filedialog.asksaveasfilename(filetypes=[("PDF Document", ".pdf")],
                                                          initialfile=str(manifest.manifest_id + ".pdf"))
@@ -199,17 +218,17 @@ class ControlPanel(tk.LabelFrame):
 
     def launch_high_risk_manager(self, *args):
         if len(backend.selected_manifest) > 0:
-            root.title(base_title + "Launch HR Manager")
+            main_window.set_status("Open HR Manager...", False)
             self.hr_manager = HRModule.HighRiskManager(self, padx=4, pady=4)
 
     def launch_dil_manager(self, *args):
         if len(backend.selected_manifest) > 0:
-            root.title(base_title + "Launch DIL Manager")
+            main_window.set_status("Open DIL Manager...", False)
             if len(backend.user_settings["DIL folder"]) < 1:
                 tk.messagebox.showinfo("No DIL folder set!",
                                        "Please set a folder for X-Dock Manager to output all DIL reports.")
                 backend.user_settings["DIL folder"] = tk.filedialog.askdirectory()
-                if not len(backend.user_settings["DIL folder"]) < 1:
+                if len(backend.user_settings["DIL folder"]) > 0:
                     self.dil_manager = DILModule.DILManager(self)
             else:
                 self.dil_manager = DILModule.DILManager(self)
@@ -239,7 +258,6 @@ class ControlPanel(tk.LabelFrame):
                                                     "- Send error report to dev: F12")
 
     def toggle_display_mode(self, *args):
-        root.title(base_title + "Changed Display Mode")
         try:
             self.display_mode_menu.current(newindex=self.display_mode_menu.current() + 1)
         except:
@@ -247,13 +265,14 @@ class ControlPanel(tk.LabelFrame):
         main_window.interface_update()
 
     def open_sync(self, *args):
-        root.title(base_title + "Launch Sync")
+        main_window.set_status("Open Mobile Sync...", False)
         self.reportModule = NetcomModule.NetcomModule(self)
 
 
 class PreviewFrame(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        # tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
         self.parent = parent
 
         self.columnconfigure(0, weight=1)
@@ -323,8 +342,11 @@ def do_argv_check():
 
 
 def exit_app():
-    backend.json_save()
     root.destroy()
+    backend.json_save()
+    if profiler is not None:
+        profiler.disable()
+        profiler.print_stats(sort="cumtime")
     system.exit()
 
 
@@ -336,21 +358,40 @@ def set_centre_geometry(target, w, h):
     target.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
 
+def io_lock_callback():
+    while backend.io_lock:
+        sleep(0.25)
+    main_window.interface_update()
+    main_window.set_status("Ready.", False)
+
+
 def run():
+    global root, main_window
+    backend.io_lock = True
+    threading.Thread(target=backend.json_load).start()
+    root = tk.Tk()
+    root.title("X-Dock Manager")
+
+    set_centre_geometry(root, 1200, 660)
+    root.columnconfigure(0, weight=1)
+    root.rowconfigure(0, weight=1)
+    root.wm_protocol("WM_DELETE_WINDOW", lambda: exit_app())
+    root.minsize(1200, 660)
+
+    main_window = XDTApplication(root)
+    main_window.grid(column=0, row=0, sticky="nsew")
+    threading.Thread(target=io_lock_callback).start()
+
+    root.iconbitmap("XDMGR.ico")
     root.after(150, do_argv_check)
     root.mainloop()
 
 
-backend.json_load()
-root = tk.Tk()
-base_title = "X-Dock Manager - " + backend.application_version + " - "
-root.title(base_title + "Ready")
-root.iconbitmap("XDMGR.ico")
-set_centre_geometry(root, 1200, 660)
-root.columnconfigure(0, weight=1)
-root.rowconfigure(0, weight=1)
-root.wm_protocol("WM_DELETE_WINDOW", lambda: exit_app())
-root.minsize(1200, 660)
-
-main_window = XDTApplication(root)
-main_window.grid(column=0, row=0, sticky="nsew")
+global root, main_window
+profiler = None
+if profiling:
+    profiler = cProfile.Profile()
+    profiler.enable()
+    run()
+else:
+    run()

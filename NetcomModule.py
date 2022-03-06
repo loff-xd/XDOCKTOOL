@@ -6,20 +6,20 @@ import tkinter as tk
 from tkinter import messagebox
 
 import BackendModule as backend
-import AppModule as app
+
+host = ""
+port = 7700
+running = True
 
 
 class NetcomModule(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
-        tk.Toplevel.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.parent = parent
-
         self.title("Mobile Sync")
-        app.set_centre_geometry(self, 300, 150)
-        app.root.grab_release()
+        set_centre_geometry(self, 300, 150)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
@@ -60,13 +60,14 @@ class NetcomModule(tk.Toplevel):
             if running:
                 # DATA OUT
                 print("Connection to: " + host)
+                self.status_label["text"] = "Syncing data."
                 self.s.sendall((str(timestamp_out) + "\n").encode())
                 self.s.sendall(data_out)
                 print("sent: " + str(len(data_out)) + " bytes")
+                self.status_label["text"] = "Syncing data.."
 
                 # DATA IN
                 timestamp_in = "0"
-
                 # DATA IN
                 data_in = ""
                 while running:
@@ -75,6 +76,7 @@ class NetcomModule(tk.Toplevel):
                         break
                     data_in += bytes.decode(recv)
                 print("received: " + str(len(data_in)) + " bytes")
+                self.status_label["text"] = "Syncing data..."
 
                 data_in = data_in.split('\n')
 
@@ -103,13 +105,14 @@ class NetcomModule(tk.Toplevel):
         self.destroy()
 
     def begin_sync(self, *args):
-        self.status_label["text"] = "Please wait..."
+        self.status_label["text"] = "Saving current state..."
         self.sync_button["state"] = "disabled"
         global host
         host = self.ip_entry.get()
         self.ip_entry["state"] = "disabled"
         backend.user_settings["last_ip"] = host
         backend.json_save()
+        self.status_label["text"] = "Starting sync..."
         global running
         running = True
         comm_thread = threading.Thread(target=self.start_comm_server)
@@ -126,6 +129,9 @@ def get_local_wireless_ip_windows():
     return local_ipv4[-1]
 
 
-host = ""
-port = 7700
-running = True
+def set_centre_geometry(target, w, h):
+    ws = target.winfo_screenwidth()
+    hs = target.winfo_screenheight()
+    x = (ws / 2) - (w / 2)
+    y = (hs / 2) - (h / 2)
+    target.geometry('%dx%d+%d+%d' % (w, h, x, y))

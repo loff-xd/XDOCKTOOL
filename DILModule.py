@@ -1,18 +1,16 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-import AppModule as app
 import BackendModule as backend
 
 
 class DILManager(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
-        tk.Toplevel.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
         self.parent = parent
 
         self.title("Generate DIL Report")
-        app.set_centre_geometry(self, 960, 640)
-        app.root.grab_release()
+        set_centre_geometry(self, 960, 640)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
@@ -52,7 +50,9 @@ class DILManager(tk.Toplevel):
 
             # POPULATE AND ENABLE ARTICLE LIST IF SSCC PICKED + SET SSCC SETTINGS
             target_sscc = self.target_manifest.get_sscc(
-                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
+                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ",
+                                                                                                        "").replace("*",
+                                                                                                                    ""))  # GET SSCC OBJ FROM MANIFEST
             if target_sscc is not None:
                 if target_sscc.dil_status == "missing":
                     self.sscc_frame.rb_missing.select()
@@ -91,10 +91,13 @@ class DILManager(tk.Toplevel):
 
         if len(self.article_frame.article_listbox.curselection()) > 0:
             target_sscc = self.target_manifest.get_sscc(
-                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ", "").replace("*", ""))  # GET SSCC OBJ FROM MANIFEST
+                (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ",
+                                                                                                        "").replace("*",
+                                                                                                                    ""))  # GET SSCC OBJ FROM MANIFEST
 
             selected_article = target_sscc.get_article(
-                self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()).replace("*", ""))
+                self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()).replace("*",
+                                                                                                                  ""))
 
             self.article_frame.set_state()
             self.article_frame.sb_qty.insert(0, selected_article.dil_qty)
@@ -174,6 +177,7 @@ class DILManager(tk.Toplevel):
         if self.control_panel.update_dil_count() != 0:
             backend.generate_DIL(backend.selected_manifest)
             tk.messagebox.showinfo("Success", "DILs successfully generated!")
+            self.parent.root.grab_set()
             self.destroy()
         else:
             tk.messagebox.showerror("Can i get uhhhh...",
@@ -199,7 +203,7 @@ class DILManager(tk.Toplevel):
 
     class SettingsFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
-            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
             self.parent = parent
             self["text"] = "Settings"
             self.columnconfigure(9, weight=1)
@@ -246,7 +250,7 @@ class DILManager(tk.Toplevel):
 
     class SSCCFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
-            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
             self.parent = parent
             self["text"] = "SSCCs"
 
@@ -301,7 +305,7 @@ class DILManager(tk.Toplevel):
 
     class ArticleFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
-            tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
             self.parent = parent
             self["text"] = "Articles"
 
@@ -368,3 +372,11 @@ class DILManager(tk.Toplevel):
 
         def other_callback(self, *args):
             self.parent.write_to_manifest()
+
+
+def set_centre_geometry(target, w, h):
+    ws = target.winfo_screenwidth()
+    hs = target.winfo_screenheight()
+    x = (ws / 2) - (w / 2)
+    y = (hs / 2) - (h / 2)
+    target.geometry('%dx%d+%d+%d' % (w, h, x, y))

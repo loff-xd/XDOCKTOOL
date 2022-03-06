@@ -1,24 +1,24 @@
+import threading
 import tkinter as tk
+from time import sleep
 from tkinter import ttk, messagebox
 
-import AppModule as app
 import BackendModule as backend
 
 
 class HighRiskManager(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
-        tk.Toplevel.__init__(self, parent, *args, **kwargs)
+        super().__init__(parent, **kwargs)
         self.parent = parent
 
         self.title("High Risk Manager")
-        app.set_centre_geometry(self, 640, 480)
-        app.root.grab_release()
+        set_centre_geometry(self, 640, 480)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
 
         self.bind("<F8>", self.close_hr_manager)
-        self.bind('<Escape>', lambda e: self.destroy())
+        self.bind('<Escape>', lambda e: self.close_no_save())
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -78,10 +78,12 @@ class HighRiskManager(tk.Toplevel):
         backend.manifests.remove(backend.get_manifest_from_id(backend.selected_manifest))
         self.manifest.last_modified = backend.current_milli_time()
         backend.manifests.append(self.manifest)
-        backend.json_save()
-        app.main_window.interface_update()
+        backend.json_threaded_save()
         self.grab_release()
-        app.root.grab_set()
+        self.destroy()
+
+    def close_no_save(self):
+        self.suggestions_tab.generate_thread.join(timeout=3)
         self.destroy()
 
     def reset_hr_manager(self):
@@ -93,7 +95,7 @@ class HighRiskManager(tk.Toplevel):
 
     class SSCCTab(tk.Frame):
         def __init__(self, parent, manifest, *args, **kwargs):
-            tk.Frame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
 
             # List side
             self.sscc_list = []
@@ -160,7 +162,7 @@ class HighRiskManager(tk.Toplevel):
 
     class ArticleTab(tk.Frame):
         def __init__(self, parent, *args, **kwargs):
-            tk.Frame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
 
             # List side
             self.article_list = []
@@ -257,8 +259,47 @@ class HighRiskManager(tk.Toplevel):
 
     class SuggestionsTab(tk.Frame):
         def __init__(self, parent, *args, **kwargs):
-            tk.Frame.__init__(self, parent, *args, **kwargs)
+            super().__init__(parent, **kwargs)
+            self.parent = parent
 
+            self.article_list = ["Please wait..."]
+            self.article_listbox_content = tk.StringVar()
+            self.article_listbox = tk.Listbox(self, height=20, width=35, listvariable=self.article_listbox_content,
+                                              selectmode="multiple")
+            self.article_listbox.grid(column=1, row=1, sticky="ne")
+            self.article_listbox.configure(justify=tk.LEFT)
+            self.article_listbox_content.set(self.article_list)
+            self.article_listbox.configure(state="disabled")
+
+            self.listbox_scroll = tk.Scrollbar(self, command=self.article_listbox.yview)
+            self.listbox_scroll.grid(column=2, row=1, sticky="nse")
+            self.article_listbox['yscrollcommand'] = self.listbox_scroll.set
+            tk.Label(self, text="Article Suggestions:").grid(column=1, row=0, sticky="w", pady=4)
+
+            self.button_add_suggestions = tk.Button(self, text="Add suggestions", command=self.add_suggestions)
+            self.button_add_suggestions.grid(column=1, row=2, pady=4)
+
+            self.columnconfigure(1, weight=1)
+            self.columnconfigure(0, weight=10)
+
+            self.generate_thread = threading.Thread(target=self.generate_suggestions).start()
+
+            if len(backend.manifests) < 6:
+                suggestions_tip_text = "Check in later, this won't be accurate\n with only " + str(
+                    len(backend.manifests)) + " manifests stored. (Need 6)"
+                self.button_add_suggestions["state"] = "disabled"
+            else:
+                suggestions_tip_text = "This will be more accurate with more data.\n You currently have " + str(
+                    len(backend.manifests)) + " manifests stored."
+
+            tk.Label(self,
+                     text="These articles have always been in\nhigh-risk SSCCs but the articles were\n"
+                          "never flagged as high risk themselves\n\n"
+                          "Here you can add them to automatically flag\nthe carton containing them as high-risk\n\n"
+                          + suggestions_tip_text).grid(column=0, row=1)
+
+        def generate_suggestions(self):
+            sleep(0.2)
             self.article_list = []
             for mani in backend.manifests:
                 for sscc in mani.ssccs:
@@ -279,38 +320,9 @@ class HighRiskManager(tk.Toplevel):
                                  self.article_list.count(i) > 1]  # Remove all unique entries
             self.article_list = list(dict.fromkeys(self.article_list))  # Remove duplicates
 
-            self.article_listbox_content = tk.StringVar()
             self.article_list = sorted(self.article_list)
-            self.article_listbox = tk.Listbox(self, height=20, width=35, listvariable=self.article_listbox_content,
-                                              selectmode="multiple")
-            self.article_listbox.grid(column=1, row=1, sticky="ne")
-            self.article_listbox.configure(justify=tk.LEFT)
+            self.article_listbox.configure(state="normal")
             self.article_listbox_content.set(self.article_list)
-
-            self.listbox_scroll = tk.Scrollbar(self, command=self.article_listbox.yview)
-            self.listbox_scroll.grid(column=2, row=1, sticky="nse")
-            self.article_listbox['yscrollcommand'] = self.listbox_scroll.set
-            tk.Label(self, text="Article Suggestions:").grid(column=1, row=0, sticky="w", pady=4)
-
-            self.button_add_suggestions = tk.Button(self, text="Add suggestions", command=self.add_suggestions)
-            self.button_add_suggestions.grid(column=1, row=2, pady=4)
-
-            self.columnconfigure(1, weight=1)
-            self.columnconfigure(0, weight=10)
-
-            if len(backend.manifests) < 6:
-                suggestions_tip_text = "Check in later, this won't be accurate\n with only " + str(
-                    len(backend.manifests)) + " manifests stored. (Need 6)"
-                self.button_add_suggestions["state"] = "disabled"
-            else:
-                suggestions_tip_text = "This will be more accurate with more data.\n You currently have " + str(
-                    len(backend.manifests)) + " manifests stored."
-
-            tk.Label(self,
-                     text="These articles have always been in\nhigh-risk SSCCs but the articles were\n"
-                          "never flagged as high risk themselves\n\n"
-                          "Here you can add them to automatically flag\nthe carton containing them as high-risk\n\n"
-                          + suggestions_tip_text).grid(column=0, row=1)
 
         def add_suggestions(self):
             for index in self.article_listbox.curselection():
@@ -318,5 +330,13 @@ class HighRiskManager(tk.Toplevel):
                 self.article_list.remove(self.article_listbox.get(index))
             self.article_listbox_content.set(sorted(self.article_list))
             self.article_listbox.selection_clear(0, "end")
-            app.main_window.control_panel.hr_manager.destroy()
-            app.main_window.control_panel.launch_high_risk_manager()
+            self.parent.close_hr_manager()
+
+
+
+def set_centre_geometry(target, w, h):
+    ws = target.winfo_screenwidth()
+    hs = target.winfo_screenheight()
+    x = (ws / 2) - (w / 2)
+    y = (hs / 2) - (h / 2)
+    target.geometry('%dx%d+%d+%d' % (w, h, x, y))
