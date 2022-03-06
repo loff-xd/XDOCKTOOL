@@ -25,7 +25,6 @@ else:
 
 class XDTApplication(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
-        # tk.Frame.__init__(self, parent, *args, **kwargs)
         super().__init__(parent, **kwargs)
         self.parent = parent
 
@@ -115,7 +114,6 @@ class XDTApplication(tk.Frame):
 # noinspection PyBroadException
 class ControlPanel(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        # tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         super().__init__(parent, **kwargs)
         self.parent = parent
 
@@ -271,7 +269,6 @@ class ControlPanel(tk.LabelFrame):
 
 class PreviewFrame(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        # tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         super().__init__(parent, **kwargs)
         self.parent = parent
 
