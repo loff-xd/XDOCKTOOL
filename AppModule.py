@@ -367,7 +367,7 @@ if __name__ == "__main__":
     backend.io_lock = True
     threading.Thread(target=backend.json_load).start()
     root = tk.Tk()
-    root.title("X-Dock Manager")
+    root.title("X-Dock Manager - " + backend.application_version)
 
     set_centre_geometry(root, 1200, 660)
     root.columnconfigure(0, weight=1)
