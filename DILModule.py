@@ -7,16 +7,18 @@ import BackendModule as backend
 class DILManager(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, **kwargs)
-        self.parent = parent
+        self.app_parent = parent
 
         self.title("Generate DIL Report")
         set_centre_geometry(self, 960, 640)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
+        self.iconbitmap("XDMGR.ico")
 
         self.bind("<F8>", self.output_dils)
-        self.bind('<Escape>', lambda e: self.destroy())
+        self.bind('<Escape>', lambda e: self.close_no_save())
+        self.wm_protocol("WM_DELETE_WINDOW", lambda: self.close_no_save())
 
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
@@ -177,7 +179,7 @@ class DILManager(tk.Toplevel):
         if self.control_panel.update_dil_count() != 0:
             backend.generate_DIL(backend.selected_manifest)
             tk.messagebox.showinfo("Success", "DILs successfully generated!")
-            self.parent.root.grab_set()
+            self.app_parent.parent_XDT_app.interface_update()
             self.destroy()
         else:
             tk.messagebox.showerror("Can i get uhhhh...",
@@ -200,6 +202,10 @@ class DILManager(tk.Toplevel):
             self.dil_mgr_sscc_update()
             self.dil_mgr_article_update()
             self.write_to_manifest()
+
+    def close_no_save(self):
+        self.app_parent.parent_XDT_app.interface_update()
+        self.destroy()
 
     class SettingsFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):

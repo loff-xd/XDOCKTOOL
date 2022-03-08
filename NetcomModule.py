@@ -24,6 +24,7 @@ class NetcomModule(tk.Toplevel):
         self.focus()
         self.resizable(False, False)
         self.wm_protocol("WM_DELETE_WINDOW", lambda: self.stop_comm_thread())
+        self.iconbitmap("XDMGR.ico")
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)

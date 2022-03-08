@@ -9,16 +9,18 @@ import BackendModule as backend
 class HighRiskManager(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, **kwargs)
-        self.parent = parent
+        self.app_parent = parent
 
         self.title("High Risk Manager")
         set_centre_geometry(self, 640, 480)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
+        self.iconbitmap("XDMGR.ico")
 
         self.bind("<F8>", self.close_hr_manager)
         self.bind('<Escape>', lambda e: self.close_no_save())
+        self.wm_protocol("WM_DELETE_WINDOW", lambda: self.close_no_save())
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -79,11 +81,14 @@ class HighRiskManager(tk.Toplevel):
         self.manifest.last_modified = backend.current_milli_time()
         backend.manifests.append(self.manifest)
         backend.json_threaded_save()
+        self.app_parent.parent_XDT_app.interface_update()
         self.grab_release()
         self.destroy()
 
     def close_no_save(self):
-        self.suggestions_tab.generate_thread.join(timeout=3)
+        if self.suggestions_tab.generate_thread is not None:
+            self.suggestions_tab.generate_thread.join(timeout=3)
+        self.app_parent.parent_XDT_app.interface_update()
         self.destroy()
 
     def reset_hr_manager(self):
@@ -331,7 +336,6 @@ class HighRiskManager(tk.Toplevel):
             self.article_listbox_content.set(sorted(self.article_list))
             self.article_listbox.selection_clear(0, "end")
             self.parent.close_hr_manager()
-
 
 
 def set_centre_geometry(target, w, h):

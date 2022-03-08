@@ -1,21 +1,20 @@
 import tkinter as tk
 import time
 
-import AppModule as app
 import BackendModule as backend
 
 
 class SearchWindow(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
+        self.app_parent = parent
 
         self.title("Search")
-        app.set_centre_geometry(self, 960, 640)
-        app.root.grab_release()
+        set_centre_geometry(self, 960, 640)
         self.grab_set()
         self.focus()
         self.resizable(False, False)
+        self.iconbitmap("XDMGR.ico")
 
         self.bind("<Return>", self.search)
         self.bind("<F8>", self.send_to_application)
@@ -57,7 +56,8 @@ class SearchWindow(tk.Toplevel):
                                                       self.match_list[self.match_list_pos][1])
             self.results_frame.article_output.see(self.match_list[self.match_list_pos][0])
             self.results_frame.article_output['state'] = 'disabled'
-            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(len(self.match_list)) + "]"
+            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(
+                len(self.match_list)) + "]"
 
     def previous(self, *args):
         if len(self.match_list) > 1:
@@ -78,7 +78,8 @@ class SearchWindow(tk.Toplevel):
                                                       self.match_list[self.match_list_pos][1])
             self.results_frame.article_output.see(self.match_list[self.match_list_pos][0])
             self.results_frame.article_output['state'] = 'disabled'
-            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(len(self.match_list)) + "]"
+            self.settings_frame.pos_label["text"] = "[" + str(self.match_list_pos + 1) + "/" + str(
+                len(self.match_list)) + "]"
 
     def next_manifest(self, *args):
         list_len = self.results_frame.manifest_listbox.size()
@@ -122,7 +123,7 @@ class SearchWindow(tk.Toplevel):
             self.button_clear = tk.Button(self, text="X", command=self.clear_results)
             self.button_clear.grid(column=2, row=0, padx=(0, 4), pady=4)
 
-            self.button_search_image = tk.PhotoImage(file=app.SEARCHICON)
+            self.button_search_image = tk.PhotoImage(file=backend.SEARCHICON)
             self.button_search = tk.Button(self, image=self.button_search_image, command=parent.search,
                                            height=20, width=20)
             self.button_search.grid(column=3, row=0, padx=(4, 4), pady=4)
@@ -237,7 +238,8 @@ class SearchWindow(tk.Toplevel):
                                             self.parent.match_list[self.parent.match_list_pos][1])
             self.article_output['state'] = 'disabled'
 
-            self.parent.settings_frame.pos_label["text"] = "[" + str(self.parent.match_list_pos + 1) + "/" + str(len(self.parent.match_list)) + "]"
+            self.parent.settings_frame.pos_label["text"] = "[" + str(self.parent.match_list_pos + 1) + "/" + str(
+                len(self.parent.match_list)) + "]"
 
     def search(self, *args):
         term = str.upper(self.settings_frame.search_query_entry.get())
@@ -279,6 +281,14 @@ class SearchWindow(tk.Toplevel):
                 str(len(matching_manifests)) + " found in " + str(round(search_time, 4)) + "s")
 
     def send_to_application(self, *args):
-        self.parent.combo_select_manifest.set(self.results_frame.selected_manifest.manifest_id)
-        self.parent.parent.interface_update()
+        self.app_parent.parent_XDT_app.select_manifest_in_listbox(self.results_frame.selected_manifest.manifest_id)
+        self.app_parent.parent_XDT_app.interface_update()
         self.destroy()
+
+
+def set_centre_geometry(target, w, h):
+    ws = target.winfo_screenwidth()
+    hs = target.winfo_screenheight()
+    x = (ws / 2) - (w / 2)
+    y = (hs / 2) - (h / 2)
+    target.geometry('%dx%d+%d+%d' % (w, h, x, y))

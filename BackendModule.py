@@ -34,8 +34,10 @@ io_lock = False
 try:
     if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")):
         VERSION = os.path.join(APP_DIR, "application.version")
+        SEARCHICON = os.path.join(APP_DIR, "search.png")
     else:
         VERSION = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")
+        SEARCHICON = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\search.png")
 
     with open(VERSION) as version_file:
         application_version = version_file.read()

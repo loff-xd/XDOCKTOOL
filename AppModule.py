@@ -17,11 +17,6 @@ import SearchModule
 APP_DIR = os.getcwd()
 profiling = False
 
-if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\search.png")):
-    SEARCHICON = os.path.join(APP_DIR, "search.png")
-else:
-    SEARCHICON = os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\search.png")
-
 
 class XDTApplication(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -76,6 +71,7 @@ class XDTApplication(tk.Frame):
     def interface_update(self, *event):
         if len(self.combo_select_manifest.curselection()) > 0:
             backend.selected_manifest = self.combo_select_manifest.get(self.combo_select_manifest.curselection())
+            self.combo_select_manifest.see(self.combo_select_manifest.curselection())
         self.combo_content.set(sorted(backend.manifests))
 
         backend.user_settings["hr_disp_mode"] = str(self.control_panel.var_display_mode.get())
@@ -115,9 +111,9 @@ class XDTApplication(tk.Frame):
 class ControlPanel(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, **kwargs)
-        self.parent = parent
+        self.parent_XDT_app = parent
 
-        self.button_search_image = tk.PhotoImage(file=SEARCHICON)
+        self.button_search_image = tk.PhotoImage(file=backend.SEARCHICON)
         self.button_search = tk.Button(self, image=self.button_search_image, command=self.launch_search_module,
                                        height=20, width=20)
         self.button_search.grid(column=1, row=0, padx=(8, 4), pady=4)
@@ -140,12 +136,12 @@ class ControlPanel(tk.LabelFrame):
         self.var_display_mode = tk.StringVar()
         self.display_mode_menu = ttk.Combobox(self, textvariable=self.var_display_mode, state="readonly", width=14)
         self.display_mode_menu.grid(column=11, row=0, padx=(2, 4), pady=4)
-        self.display_mode_menu.bind("<<ComboboxSelected>>", self.parent.interface_update)
+        self.display_mode_menu.bind("<<ComboboxSelected>>", self.parent_XDT_app.interface_update)
         self.display_mode_menu["values"] = ("Expand None", "Expand HR", "Expand All")
 
         self.var_open_on_save = tk.IntVar()
         self.check_open_on_save = tk.Checkbutton(self, text="Switch to PDF on save", variable=self.var_open_on_save,
-                                                 command=self.parent.interface_update)
+                                                 command=self.parent_XDT_app.interface_update)
         self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
 
         self.button_reports = tk.Button(self, text="Mobile Sync", command=self.open_sync)
@@ -182,9 +178,9 @@ class ControlPanel(tk.LabelFrame):
                     if int(manifest.manifest_id) > int(recent.manifest_id):
                         recent = manifest
 
-                self.parent.combo_content.set(sorted(backend.manifests))
-                self.parent.select_manifest_in_listbox(recent.manifest_id)
-                self.parent.interface_update()
+                self.parent_XDT_app.combo_content.set(sorted(backend.manifests))
+                self.parent_XDT_app.select_manifest_in_listbox(recent.manifest_id)
+                self.parent_XDT_app.interface_update()
 
             except Exception as e:
                 panik.log(e)
@@ -195,8 +191,8 @@ class ControlPanel(tk.LabelFrame):
             mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
             if len(mhtml_location) > 0:
                 imported_manifest_id = backend.mhtml_importer(mhtml_location)
-                self.parent.combo_content.set(sorted(backend.manifests))
-                self.parent.select_manifest_in_listbox(imported_manifest_id)
+                self.parent_XDT_app.combo_content.set(sorted(backend.manifests))
+                self.parent_XDT_app.select_manifest_in_listbox(imported_manifest_id)
             main_window.interface_update()
         except Exception as e:
             panik.log(e)
@@ -362,8 +358,12 @@ def io_lock_callback():
     main_window.set_status("Ready.", False)
 
 
-def run():
-    global root, main_window
+if __name__ == "__main__":
+    profiler = None
+    if profiling:
+        profiler = cProfile.Profile()
+        profiler.enable()
+
     backend.io_lock = True
     threading.Thread(target=backend.json_load).start()
     root = tk.Tk()
@@ -382,13 +382,3 @@ def run():
     root.iconbitmap("XDMGR.ico")
     root.after(150, do_argv_check)
     root.mainloop()
-
-
-global root, main_window
-profiler = None
-if profiling:
-    profiler = cProfile.Profile()
-    profiler.enable()
-    run()
-else:
-    run()
