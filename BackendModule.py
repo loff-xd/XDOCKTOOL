@@ -7,7 +7,6 @@ import datetime
 import email
 import json
 import os
-import textwrap
 import threading
 import time
 import sys
@@ -15,6 +14,7 @@ import tkinter.messagebox
 from tkinter import messagebox
 import traceback
 
+import xlsxwriter
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
@@ -448,79 +448,90 @@ def generate_DIL(manifest_id):
     manifest = get_manifest_from_id(manifest_id)
     update_manifest_timestamp(manifest_id)
 
+    filepath = os.path.join(user_settings.get("DIL folder"), str(manifest_id))
+    if not os.path.isdir(filepath):
+        os.mkdir(filepath)
+
     for sscc in manifest.ssccs:
-        filepath = os.path.join(user_settings.get("DIL folder"), str(manifest_id))
-        filename = os.path.join(filepath, str(sscc.sscc) + ".pdf")
+        filename = os.path.join(filepath, str(sscc.sscc) + ".xlsx")
 
         if sscc.dil_status == "":
-            create_dil = False
+
+            # CHECK DIL TYPE
+            article_dil = False
             for article in sscc.articles:
                 if article.dil_status != "":
-                    create_dil = True
+                    article_dil = True
 
-            if create_dil:  # ARTICLE ISSUE
-                # Create file and header
-                pdf_file = FPDF("P", "mm", "A4")
-                pdf_file.add_page()
-                pdf_file.set_font('Courier', '', 12)
-                pdf_file.set_title(manifest.manifest_id)
-                title_text = "DIL REPORT - [Manifest: " + manifest.manifest_id + "] - [Date Imported: " + manifest.import_date + \
-                             "]\n[SSCC: " + sscc.sscc + "] - [Issue: see article list]"
-                pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
+            if article_dil:  # ARTICLE ISSUE
+                # MAKE FILE
+                excel_file = xlsxwriter.Workbook(filename)
+                dil_sheet = excel_file.add_worksheet()
 
-                # Make the table for the PDF
-                pdf_file.set_font('Courier', '', 9)
-                pdf_file.set_fill_color(220)
-                tb_content = [["Article", "Qty", "Condition", "Problem Qty", "Received Qty", "Comments"]]
+                datarow = 3
+                datacol = 0
+
+                dil_sheet.set_column(datacol, datacol, 12)
+                dil_sheet.set_column(datacol + 1, datacol + 1, 12)
+                dil_sheet.set_column(datacol + 2, datacol + 2, 12)
+                dil_sheet.set_column(datacol + 3, datacol + 3, 12)
+                dil_sheet.set_column(datacol + 4, datacol + 4, 12)
+                dil_sheet.set_column(datacol + 5, datacol + 5, 30)
+
+                dil_sheet.merge_range(0, 0, 0, 5, "Manifest: " + manifest_id + ", SSCC: " + sscc.sscc)
+
+                dil_sheet.write(3, datacol, "Article:")
+                dil_sheet.write(3, datacol + 1, "Order Qty:")
+                dil_sheet.write(3, datacol + 2, "Problem Qty:")
+                dil_sheet.write(3, datacol + 3, "Rec'd Qty:")
+                dil_sheet.write(3, datacol + 4, "Issue:")
+                dil_sheet.write(3, datacol + 5, "Comment:")
 
                 for article in sscc.articles:
-                    if article.dil_status != "damaged":
-                        tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
-                                           (int(article.qty) - int(article.dil_qty)),
-                                           textwrap.fill(article.dil_comment, 30)])
+                    dil_sheet.write(datarow, datacol, article.code)
+                    dil_sheet.write(datarow, datacol + 1, str(article.qty))
+                    dil_sheet.write(datarow, datacol + 2, str(article.dil_qty))
+                    if article.dil_status == "under":
+                        dil_sheet.write(datarow, datacol + 3, str(int(article.qty) - int(article.dil_qty)))
+                    elif article.dil_status == "over":
+                        dil_sheet.write(datarow, datacol + 3, str(int(article.qty) + int(article.dil_qty)))
                     else:
-                        tb_content.append([article.code, article.qty, article.dil_status, article.dil_qty,
-                                           article.qty, textwrap.fill(article.dil_comment, 30)])
+                        dil_sheet.write(datarow, datacol + 3, "-")
+                    dil_sheet.write(datarow, datacol + 4, article.dil_status)
+                    dil_sheet.write(datarow, datacol + 5, article.dil_comment)
+                    datarow += 1
 
-                cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple"))
-                pdf_file.multi_cell(w=0, h=5, txt=cell_text, align="L", border=1)
-
-                # Actually save the pdf
-                if not os.path.isdir(filepath):
-                    os.mkdir(filepath)
-                pdf_file.output(filename, 'F')
+                # Actually save the file
+                excel_file.close()
 
         else:  # SSCC ISSUE
-            # Create file and header
-            pdf_file = FPDF("P", "mm", "A4")
-            pdf_file.add_page()
-            pdf_file.set_font('Courier', '', 12)
-            pdf_file.set_title(manifest.manifest_id)
-            title_text = "DIL REPORT - [Manifest: " + manifest.manifest_id + "] - [Date Imported: " + manifest.import_date + \
-                         "]\n[SSCC: " + sscc.sscc + "] - [Issue: " + sscc.dil_status + "]"
-            pdf_file.multi_cell(w=200, h=12, txt=title_text, align="L")
+            # MAKE FILE
+            excel_file = xlsxwriter.Workbook(filename)
+            dil_sheet = excel_file.add_worksheet()
 
-            if len(sscc.dil_comment) > 0:
-                pdf_file.set_font('Courier', '', 9)
-                pdf_file.multi_cell(w=0, h=8, txt=("Comments:\n" + sscc.dil_comment), align="L")
+            datarow = 4
+            datacol = 0
 
-            # Make the table for the PDF
-            pdf_file.set_font('Courier', '', 9)
-            pdf_file.set_fill_color(220)
+            dil_sheet.set_column(datacol, datacol, 12)
+            dil_sheet.set_column(datacol + 2, datacol + 2, 30)
+            dil_sheet.set_column(datacol + 1, datacol + 1, 8)
 
-            tb_content = [["Article", "Description".ljust(30), "Qty"]]
+            dil_sheet.merge_range(0, 0, 0, 2, "Manifest: " + manifest_id + ", SSCC: " + sscc.sscc)
+            dil_sheet.merge_range(1, 0, 1, 2, "Issue: " + sscc.dil_status)
+            dil_sheet.merge_range(2, 0, 2, 2, "Comments: " + sscc.dil_comment)
+
+            dil_sheet.write(3, datacol, "Article:")
+            dil_sheet.write(3, datacol + 2, "Description:")
+            dil_sheet.write(3, datacol + 1, "Qty:")
 
             for article in sscc.articles:
-                tb_content.append(
-                    [article.code, article.desc, article.qty])
+                dil_sheet.write(datarow, datacol, article.code)
+                dil_sheet.write(datarow, datacol+2, article.desc)
+                dil_sheet.write(datarow, datacol+1, str(article.qty))
+                datarow += 1
 
-            cell_text = (tabulate(tb_content, headers="firstrow", tablefmt="simple"))
-            pdf_file.multi_cell(w=0, h=5, txt=cell_text, align="L", border=1)
-
-            # Actually save the pdf
-            if not os.path.isdir(filepath):
-                os.mkdir(filepath)
-            pdf_file.output(filename, 'F')
+            # Actually save the file
+            excel_file.close()
 
 
 def format_preview(s_manifest):

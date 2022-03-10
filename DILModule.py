@@ -54,7 +54,7 @@ class DILManager(tk.Toplevel):
             target_sscc = self.target_manifest.get_sscc(
                 (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ",
                                                                                                         "").replace("*",
-                                                                                                                    ""))  # GET SSCC OBJ FROM MANIFEST
+                                                                                                                    ""))
             if target_sscc is not None:
                 if target_sscc.dil_status == "missing":
                     self.sscc_frame.rb_missing.select()
@@ -95,7 +95,7 @@ class DILManager(tk.Toplevel):
             target_sscc = self.target_manifest.get_sscc(
                 (self.sscc_frame.sscc_listbox.get(self.sscc_frame.sscc_listbox.curselection())).replace(" ",
                                                                                                         "").replace("*",
-                                                                                                                    ""))  # GET SSCC OBJ FROM MANIFEST
+                                                                                                                    ""))
 
             selected_article = target_sscc.get_article(
                 self.article_frame.article_listbox.get(self.article_frame.article_listbox.curselection()).replace("*",
@@ -178,7 +178,7 @@ class DILManager(tk.Toplevel):
         self.write_to_manifest()
         if self.control_panel.update_dil_count() != 0:
             backend.generate_DIL(backend.selected_manifest)
-            tk.messagebox.showinfo("Success", "DILs successfully generated!")
+            tk.messagebox.showinfo("Success", "DILs successfully generated!", parent=self)
             self.app_parent.parent_XDT_app.interface_update()
             self.destroy()
         else:
