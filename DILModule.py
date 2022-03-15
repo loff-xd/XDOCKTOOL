@@ -1,8 +1,12 @@
+import os
+import subprocess
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import BackendModule as backend
 
+
+# TODO DIL MANAGER REFRESH
 
 class DILManager(tk.Toplevel):
     def __init__(self, parent, *args, **kwargs):
@@ -230,8 +234,11 @@ class DILManager(tk.Toplevel):
             self.button_dil_folder = tk.Button(self, text="Change DIL Folder", command=parent.change_dil_folder)
             self.button_dil_folder.grid(column=11, row=0, padx=4, pady=4, sticky="e")
 
+            self.button_dil_folder = tk.Button(self, text="Open DIL Folder", command=self.open_dil_folder)
+            self.button_dil_folder.grid(column=12, row=0, padx=4, pady=4, sticky="e")
+
             self.button_output_dil = tk.Button(self, text="Generate (F8)", command=parent.output_dils)
-            self.button_output_dil.grid(column=12, row=0, padx=4, pady=4, sticky="e")
+            self.button_output_dil.grid(column=13, row=0, padx=4, pady=4, sticky="e")
 
             self.update_dil_count()
 
@@ -253,6 +260,13 @@ class DILManager(tk.Toplevel):
             else:
                 self.button_reset["state"] = "disabled"
             return self.dil_count
+
+        @staticmethod
+        def open_dil_folder():
+            explorer_path = os.path.join(os.getenv("WINDIR"), "explorer.exe")
+            dil_path = os.path.normpath(backend.user_settings.get("DIL folder"))
+            if os.path.isdir(dil_path):
+                subprocess.run([explorer_path, dil_path])
 
     class SSCCFrame(tk.LabelFrame):
         def __init__(self, parent, *args, **kwargs):
@@ -345,7 +359,7 @@ class DILManager(tk.Toplevel):
             self.desired_qty = tk.Label(self, text="Desired Qty:")
             self.desired_qty.grid(column=2, row=5, padx=8, pady=4, sticky="sw")
 
-            tk.Label(self, text="Problem Qty:").grid(column=2, row=6, padx=8, pady=4, sticky="sw")
+            self.qty_label = tk.Label(self, text="Problem Qty:").grid(column=2, row=6, padx=8, pady=4, sticky="sw")
 
             self.sb_qty = tk.Spinbox(self, from_=0, to=9999, command=self.other_callback)
             self.sb_qty.grid(column=2, row=7, padx=8, pady=4, sticky="w")
@@ -377,7 +391,8 @@ class DILManager(tk.Toplevel):
             self.parent.dil_mgr_article_update()
 
         def other_callback(self, *args):
-            self.parent.write_to_manifest()
+            if len(self.sb_qty.get()) != 0:
+                self.parent.write_to_manifest()
 
 
 def set_centre_geometry(target, w, h):

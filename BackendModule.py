@@ -14,7 +14,7 @@ import tkinter.messagebox
 from tkinter import messagebox
 import traceback
 
-import xlsxwriter
+import xlsxwriter as xlsxwriter
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
@@ -468,7 +468,7 @@ def generate_DIL(manifest_id):
                 excel_file = xlsxwriter.Workbook(filename)
                 dil_sheet = excel_file.add_worksheet()
 
-                datarow = 3
+                datarow = 4
                 datacol = 0
 
                 dil_sheet.set_column(datacol, datacol, 12)
@@ -478,7 +478,7 @@ def generate_DIL(manifest_id):
                 dil_sheet.set_column(datacol + 4, datacol + 4, 12)
                 dil_sheet.set_column(datacol + 5, datacol + 5, 30)
 
-                dil_sheet.merge_range(0, 0, 0, 5, "Manifest: " + manifest_id + ", SSCC: " + sscc.sscc)
+                dil_sheet.merge_range(0, 0, 0, 5, sscc.sscc)
 
                 dil_sheet.write(3, datacol, "Article:")
                 dil_sheet.write(3, datacol + 1, "Order Qty:")
@@ -516,7 +516,7 @@ def generate_DIL(manifest_id):
             dil_sheet.set_column(datacol + 2, datacol + 2, 30)
             dil_sheet.set_column(datacol + 1, datacol + 1, 8)
 
-            dil_sheet.merge_range(0, 0, 0, 2, "Manifest: " + manifest_id + ", SSCC: " + sscc.sscc)
+            dil_sheet.merge_range(0, 0, 0, 2, sscc.sscc)
             dil_sheet.merge_range(1, 0, 1, 2, "Issue: " + sscc.dil_status)
             dil_sheet.merge_range(2, 0, 2, 2, "Comments: " + sscc.dil_comment)
 
