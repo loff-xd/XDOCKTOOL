@@ -2,9 +2,8 @@ import os
 import sys
 import tkinter.messagebox
 import traceback
-import smtplib
 from datetime import datetime
-from email.message import EmailMessage
+from tkinter import filedialog
 
 APP_DIR = os.getcwd()
 
@@ -33,25 +32,18 @@ def log(exception):
 def report(*args):
     print("Error report requested")
     try:
-        msg = EmailMessage()
-        msg['From'] = 'errorreporting@loff.duckdns.org'
-        msg['To'] = 'lachixd+xdt@gmail.com'
-        msg['Subject'] = 'Error Report' + str(datetime.now())
-
+        content = ""
         with open(errorFile, "r") as logfile:
-            msg.set_content(logfile.read())
+            content = logfile.read()
 
-        smtp_server = 'aspmx.l.google.com'
-        server = smtplib.SMTP(smtp_server, 25)
-        server.ehlo()
-        server.starttls()
-        server.send_message(msg)
-        server.quit()
+        save_location = filedialog.asksaveasfilename(filetypes=[("Error Report", ".log")],
+                                                     initialfile=str("XDMErrors" + ".log"))
 
-        with open(errorFile, "a") as logfile:
-            logfile.write("\n==REPORT SENT==\n")
+        if len(save_location) > 0:
+            with open(save_location, "w") as report_file:
+                report_file.write(content)
 
-        tkinter.messagebox.showinfo("Report sent", "The error report has been sent to the developer")
+        tkinter.messagebox.showinfo("Report saved", "The error report has been saved. Please send it to the developer")
     except Exception as e:
         log(e)
         tkinter.messagebox.showerror("Couldn't send report", "Something went wrong, how inconvenient!\nPlease contact "

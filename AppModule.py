@@ -52,7 +52,7 @@ class XDTApplication(tk.Frame):
 
         root.bind("<F1>", self.control_panel.get_help)
         root.bind("<F2>", self.control_panel.load_recent)
-        root.bind("<Insert>", self.control_panel.open_mhtml)
+        root.bind("<Insert>", self.control_panel.import_manifest_file)
         root.bind("<F3>", self.control_panel.launch_high_risk_manager)
         root.bind("<F4>", self.control_panel.launch_dil_manager)
         root.bind("<F5>", self.interface_update)
@@ -118,7 +118,7 @@ class ControlPanel(tk.LabelFrame):
                                        height=20, width=20)
         self.button_search.grid(column=1, row=0, padx=(8, 4), pady=4)
 
-        self.button_open = tk.Button(self, text="Import SAP MHTML", command=self.open_mhtml)
+        self.button_open = tk.Button(self, text="Import Manifest", command=self.import_manifest_file)
         self.button_open.grid(column=2, row=0, padx=(4, 2), pady=4)
 
         self.button_set_hr = tk.Button(self, text="High Risk Manager", command=self.launch_high_risk_manager)
@@ -185,14 +185,24 @@ class ControlPanel(tk.LabelFrame):
             except Exception as e:
                 panik.log(e)
 
-    def open_mhtml(self, *args):
+    def import_manifest_file(self, *args):
         try:
-            main_window.set_status("Open MHTML...", False)
-            mhtml_location = filedialog.askopenfilename(filetypes=[("SAP Manifest", ".MHTML")])
-            if len(mhtml_location) > 0:
-                imported_manifest_id = backend.mhtml_importer(mhtml_location)
-                self.parent_XDT_app.combo_content.set(sorted(backend.manifests))
-                self.parent_XDT_app.select_manifest_in_listbox(imported_manifest_id)
+            main_window.set_status("Open File...", False)
+            sap_file_location = filedialog.askopenfilename(filetypes=[("Supported files", ".MHTML .HTM"), ("SAP Manifest as Excel", ".MHTML"), ("SAP Manifest as File", ".HTM")])
+            if len(sap_file_location) > 0:
+                imported_manifest_id = None
+                if str(sap_file_location).upper().endswith(".MHTML"):
+                    imported_manifest_id = backend.mhtml_importer(sap_file_location)
+                elif str(sap_file_location).upper().endswith(".HTM"):
+                    imported_manifest_id = backend.htm_importer(sap_file_location)
+                else:
+                    messagebox.showerror("Error loading file", "Unable to find any manifest data in the selected file.")
+
+                if imported_manifest_id is not None and imported_manifest_id != "000000":
+                    self.parent_XDT_app.combo_content.set(sorted(backend.manifests))
+                    self.parent_XDT_app.select_manifest_in_listbox(imported_manifest_id)
+                else:
+                    messagebox.showerror("Error loading file", "Unable to find any manifest data in the selected file.")
             main_window.interface_update()
         except Exception as e:
             panik.log(e)
@@ -241,7 +251,6 @@ class ControlPanel(tk.LabelFrame):
                                + str(os.getcwd()) + "\n\n"
                                                     "Any issues/bugs/suggestions can be logged via GitHub:\n"
                                                     "https://github.com/loff-xd/XDOCKTOOL\n\n"
-                                                    "Cheers for taking the X-Dock Manager for a spin!\n\n"
                                                     "Shortcuts:\n"
                                                     "- Load most recent manifest: F2\n"
                                                     "- Import manifest: INSERT\n"
@@ -249,7 +258,7 @@ class ControlPanel(tk.LabelFrame):
                                                     "- DIL Manager: F4\n"
                                                     "- Toggle Display Mode: F6\n"
                                                     "- Save Manifest: F8\n"
-                                                    "- Send error report to dev: F12")
+                                                    "- Save error report: F12")
 
     def toggle_display_mode(self, *args):
         try:

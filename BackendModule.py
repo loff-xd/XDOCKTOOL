@@ -30,7 +30,6 @@ APP_DIR = os.getcwd()
 io_thread = None
 io_lock = False
 
-
 try:
     if not os.path.isfile(os.path.join(APP_DIR, "bin\\XDOCK_MANAGER\\application.version")):
         VERSION = os.path.join(APP_DIR, "application.version")
@@ -103,7 +102,8 @@ class Manifest:
         sscc_list = []
         for sscc in self.ssccs:
             sscc_list.append(sscc.export())
-        return {"Manifest ID": self.manifest_id, "Import Date": self.import_date, "Last Modified": self.last_modified, "SSCCs": sscc_list}
+        return {"Manifest ID": self.manifest_id, "Import Date": self.import_date, "Last Modified": self.last_modified,
+                "SSCCs": sscc_list}
 
     def __eq__(self, other):
         return int(self.manifest_id) == int(other.manifest_id)
@@ -255,8 +255,8 @@ def junk_check(var):
         return False
 
 
+# MHTML SUPPORT
 def mhtml_importer(file_path):
-    # Import mhtml
     with open(file_path, 'r') as source:
         content = email.message_from_file(source)
         for unit in content.walk():
@@ -295,16 +295,76 @@ def mhtml_importer(file_path):
         for article in sscc.articles:
             article.do_HR_check()
 
+    if "000000" in new_manifest.manifest_id:
+        return "000000"
+
     if new_manifest.manifest_id in [manifest.manifest_id for manifest in manifests]:
-        result = tkinter.messagebox.askyesnocancel("Duplicate manifest", "Manifest " + new_manifest.manifest_id + " already exits, would you like to replace it?")
-        print(result)
+        result = tkinter.messagebox.askyesnocancel("Duplicate manifest",
+                                                   "Manifest " + new_manifest.manifest_id + " already exits, would you like to replace it?")
         if result:
             manifests.remove(get_manifest_from_id(new_manifest.manifest_id))
             new_manifest.import_date = str(datetime.date.today())
             new_manifest.last_modified = str(current_milli_time())
             manifests.append(new_manifest)
             json_threaded_save()
-            print("Replaced manifest: " + new_manifest.manifest_id)
+        else:
+            pass
+    else:
+        new_manifest.import_date = str(datetime.date.today())
+        new_manifest.last_modified = str(current_milli_time())
+        manifests.append(new_manifest)
+        json_threaded_save()
+
+    return new_manifest.manifest_id
+
+
+# HTM SUPPORT
+def htm_importer(file_path):
+
+    with open(file_path, 'r') as source:
+        raw_file = BeautifulSoup(source, 'html.parser')
+
+    new_manifest = Manifest("000000")
+    for row in raw_file.findAll('tr'):
+        new_entry = []
+        for element in row.findAll('td'):
+            element_text = element.text
+            new_entry.append([element_text.strip()])
+
+        if junk_check(new_entry):  # This is the gatekeeper of junk entries
+            # manifest[0], sscc[1], count[2], article[3], desc[4], handling_unit_uom[5], gtin[6], qty[7] -> Order
+            # of information
+            entry_placed = False
+            # DESC NEEDS TRAILING SPACES REMOVED
+            new_article = Article(new_entry[3][0].replace(u'\xa0', ''), new_entry[4][0].replace(u'\xa0', ' '), new_entry[6][0].replace(u'\xa0', ''), new_entry[7][0].replace(u'\xa0', ''), False)
+
+            # Check if sscc already exists, add if not
+            for exist_sscc in new_manifest.ssccs:
+                if exist_sscc.sscc == new_entry[1][0].replace(u'\xa0', ''):
+                    exist_sscc.articles.append(new_article)
+                    entry_placed = True
+
+            # if sscc exists, add article to it
+            if not entry_placed:
+                new_sscc = SSCC(new_entry[1][0].replace(u'\xa0', ''))
+                new_sscc.articles.append(new_article)
+                new_manifest.ssccs.append(new_sscc)
+
+            if new_manifest.manifest_id == "000000":
+                new_manifest.manifest_id = new_entry[0][0].replace(u'\xa0', '')
+
+    if "000000" in new_manifest.manifest_id:
+        return "000000"
+
+    if new_manifest.manifest_id in [manifest.manifest_id for manifest in manifests]:
+        result = tkinter.messagebox.askyesnocancel("Duplicate manifest",
+                                                   "Manifest " + new_manifest.manifest_id + " already exits, would you like to replace it?")
+        if result:
+            manifests.remove(get_manifest_from_id(new_manifest.manifest_id))
+            new_manifest.import_date = str(datetime.date.today())
+            new_manifest.last_modified = str(current_milli_time())
+            manifests.append(new_manifest)
+            json_threaded_save()
         else:
             pass
     else:
@@ -526,8 +586,8 @@ def generate_DIL(manifest_id):
 
             for article in sscc.articles:
                 dil_sheet.write(datarow, datacol, article.code)
-                dil_sheet.write(datarow, datacol+2, article.desc)
-                dil_sheet.write(datarow, datacol+1, str(article.qty))
+                dil_sheet.write(datarow, datacol + 2, article.desc)
+                dil_sheet.write(datarow, datacol + 1, str(article.qty))
                 datarow += 1
 
             # Actually save the file
