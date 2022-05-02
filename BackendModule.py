@@ -488,7 +488,7 @@ class OpenFailedException(Exception):
 
 
 # noinspection PyBroadException
-def open_saved_file(file_loc):
+def open_saved_file(file_loc):  # TODO DO NOT CLOSE APP IF LAUNCH FAILS
     success = False
     for i in range(0, 3, 1):
         if os.path.isfile(file_loc):
