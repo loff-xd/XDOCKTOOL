@@ -18,6 +18,7 @@ import xlsxwriter as xlsxwriter
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from tabulate import tabulate
+
 import PanikModule as panik
 
 # CONFIG
@@ -475,33 +476,26 @@ def generate_pdf(manifest, pdf_location):
 
         # Open the pdf if user has requested
         if user_settings['open_on_save']:
-            threading.Thread(target=open_saved_file(pdf_location)).start()
+            open_saved_file(pdf_location)
 
     except Exception as e:
         panik.log(e)
 
 
 class OpenFailedException(Exception):
-    def __init__(self, message="Failed to open the saved file after 3 tries over 3 seconds"):
+    def __init__(self, message="Failed to open the saved file"):
         self.message = message
         super().__init__(self.message)
 
 
 # noinspection PyBroadException
-def open_saved_file(file_loc):  # TODO DO NOT CLOSE APP IF LAUNCH FAILS
-    success = False
-    for i in range(0, 3, 1):
-        if os.path.isfile(file_loc):
-            try:
-                os.startfile(file_loc)
-                success = True
-            except:
-                pass
-            break
-        else:
-            time.sleep(1)
-    if not success:
-        panik.log(OpenFailedException)
+def open_saved_file(file_loc):
+    if os.path.isfile(file_loc):
+        try:
+            os.startfile(file_loc)
+        except:
+            panik.log(OpenFailedException)
+            messagebox.showerror("Error opening file", "Unable to auto-open the saved file. Network drives are known to cause this.")
 
 
 def generate_DIL(manifest_id):
@@ -513,58 +507,10 @@ def generate_DIL(manifest_id):
         os.mkdir(filepath)
 
     for sscc in manifest.ssccs:
-        filename = os.path.join(filepath, str(sscc.sscc) + ".xlsx")
+        if sscc.dil_status != "":
 
-        if sscc.dil_status == "":
+            filename = os.path.join(filepath, str(sscc.sscc) + ".xlsx")
 
-            # CHECK DIL TYPE
-            article_dil = False
-            for article in sscc.articles:
-                if article.dil_status != "":
-                    article_dil = True
-
-            if article_dil:  # ARTICLE ISSUE
-                # MAKE FILE
-                excel_file = xlsxwriter.Workbook(filename)
-                dil_sheet = excel_file.add_worksheet()
-
-                datarow = 4
-                datacol = 0
-
-                dil_sheet.set_column(datacol, datacol, 12)
-                dil_sheet.set_column(datacol + 1, datacol + 1, 12)
-                dil_sheet.set_column(datacol + 2, datacol + 2, 12)
-                dil_sheet.set_column(datacol + 3, datacol + 3, 12)
-                dil_sheet.set_column(datacol + 4, datacol + 4, 12)
-                dil_sheet.set_column(datacol + 5, datacol + 5, 30)
-
-                dil_sheet.merge_range(0, 0, 0, 5, sscc.sscc)
-
-                dil_sheet.write(3, datacol, "Article:")
-                dil_sheet.write(3, datacol + 1, "Order Qty:")
-                dil_sheet.write(3, datacol + 2, "Problem Qty:")
-                dil_sheet.write(3, datacol + 3, "Rec'd Qty:")
-                dil_sheet.write(3, datacol + 4, "Issue:")
-                dil_sheet.write(3, datacol + 5, "Comment:")
-
-                for article in sscc.articles:
-                    dil_sheet.write(datarow, datacol, article.code)
-                    dil_sheet.write(datarow, datacol + 1, str(article.qty))
-                    dil_sheet.write(datarow, datacol + 2, str(article.dil_qty))
-                    if article.dil_status == "under":
-                        dil_sheet.write(datarow, datacol + 3, str(int(article.qty) - int(article.dil_qty)))
-                    elif article.dil_status == "over":
-                        dil_sheet.write(datarow, datacol + 3, str(int(article.qty) + int(article.dil_qty)))
-                    else:
-                        dil_sheet.write(datarow, datacol + 3, "-")
-                    dil_sheet.write(datarow, datacol + 4, article.dil_status)
-                    dil_sheet.write(datarow, datacol + 5, article.dil_comment)
-                    datarow += 1
-
-                # Actually save the file
-                excel_file.close()
-
-        else:  # SSCC ISSUE
             # MAKE FILE
             excel_file = xlsxwriter.Workbook(filename)
             dil_sheet = excel_file.add_worksheet()

@@ -53,6 +53,7 @@ class XDTApplication(tk.Frame):
         root.bind("<F1>", self.control_panel.get_help)
         root.bind("<F2>", self.control_panel.load_recent)
         root.bind("<Insert>", self.control_panel.import_manifest_file)
+        root.bind("<Delete>", self.control_panel.delete_manifest)
         root.bind("<F3>", self.control_panel.launch_high_risk_manager)
         root.bind("<F4>", self.control_panel.launch_dil_manager)
         root.bind("<F5>", self.interface_update)
@@ -144,7 +145,7 @@ class ControlPanel(tk.LabelFrame):
                                                  command=self.parent_XDT_app.interface_update)
         self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
 
-        self.button_reports = tk.Button(self, text="Mobile Sync", command=self.open_sync)
+        self.button_reports = tk.Button(self, text="App Sync", command=self.open_sync)
         self.button_reports.grid(column=20, row=0, padx=8, pady=4, sticky="e")
         self.columnconfigure(19, weight=1)
 
@@ -216,9 +217,9 @@ class ControlPanel(tk.LabelFrame):
                                                          initialfile=str(manifest.manifest_id + ".pdf"))
             if len(save_location) > 0:
                 backend.generate_pdf(manifest, save_location)
-                if backend.user_settings["open_on_save"]:
-                    root.destroy()
-                    system.exit()
+                # if backend.user_settings["open_on_save"]:
+                #     root.destroy()
+                #     system.exit()
 
     def launch_high_risk_manager(self, *args):
         if len(backend.selected_manifest) > 0:
@@ -254,6 +255,7 @@ class ControlPanel(tk.LabelFrame):
                                                     "Shortcuts:\n"
                                                     "- Load most recent manifest: F2\n"
                                                     "- Import manifest: INSERT\n"
+                                                    "- Delete manifest: DELETE\n"
                                                     "- High Risk Manager: F3\n"
                                                     "- DIL Manager: F4\n"
                                                     "- Toggle Display Mode: F6\n"
@@ -268,8 +270,15 @@ class ControlPanel(tk.LabelFrame):
         main_window.interface_update()
 
     def open_sync(self, *args):
-        main_window.set_status("Open Mobile Sync...", False)
         self.reportModule = NetcomModule.NetcomModule(self)
+
+    @staticmethod
+    def delete_manifest(*args):
+        if len(backend.selected_manifest) > 0:
+            if messagebox.askyesno("Delete Manifest", "Are you sure you want to delete manifest: " + backend.selected_manifest + "?", default='no'):
+                backend.manifests.remove(backend.get_manifest_from_id(backend.selected_manifest))
+                main_window.interface_update()
+                backend.json_threaded_save()
 
 
 class PreviewFrame(tk.LabelFrame):
@@ -320,10 +329,8 @@ class PreviewFrame(tk.LabelFrame):
         start_page += "\n\n Shortcuts:\n" \
                       " - Load most recent manifest: F2\n" \
                       " - Import Manifest:           INSERT\n" \
-                      " - High Risk Manager:         F3\n" \
-                      " - DIL Manager:               F4\n" \
-                      " - Toggle Display Mode:       F6\n" \
-                      " - Save Manifest:             F8"
+                      " - Delete Manifest:           DELETE\n"\
+                      " - Help / More shortcuts:     F1"
 
         self.text_preview.insert(tk.INSERT, start_page)
 
