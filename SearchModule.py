@@ -200,7 +200,7 @@ class SearchWindow(tk.Toplevel):
                 self.text_field_update()
 
         def text_field_update(self):
-            field_string = "Manifest: " + self.selected_manifest.manifest_id + "\n\n"
+            field_string = "Manifest: " + self.selected_manifest.manifest_id + ", Imported: " + self.selected_manifest.import_date + "\n\n"
             for sscc in self.selected_manifest.ssccs:
                 field_string += "   " + sscc.sscc + ":\n"
                 count = 0

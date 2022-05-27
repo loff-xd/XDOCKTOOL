@@ -13,6 +13,7 @@ import HRModule
 import NetcomModule
 import PanikModule as panik
 import SearchModule
+import SettingsModule
 
 APP_DIR = os.getcwd()
 profiling = False
@@ -93,11 +94,13 @@ class XDTApplication(tk.Frame):
             self.control_panel.button_set_hr["state"] = "normal"
             self.control_panel.button_gen_dil["state"] = "normal"
             self.control_panel.button_export_pdf["state"] = "normal"
+            self.control_panel.button_appsync["state"] = "normal"
 
         else:
             self.control_panel.button_set_hr["state"] = "disabled"
             self.control_panel.button_gen_dil["state"] = "disabled"
             self.control_panel.button_export_pdf["state"] = "disabled"
+            self.control_panel.button_appsync["state"] = "disabled"
             self.preview_frame.start_page()
             self.preview_frame['text'] = "No manifest loaded"
 
@@ -145,9 +148,12 @@ class ControlPanel(tk.LabelFrame):
                                                  command=self.parent_XDT_app.interface_update)
         self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
 
-        self.button_reports = tk.Button(self, text="App Sync", command=self.open_sync)
-        self.button_reports.grid(column=20, row=0, padx=8, pady=4, sticky="e")
-        self.columnconfigure(19, weight=1)
+        self.button_appsync = tk.Button(self, text="Settings", command=self.open_settings)
+        self.button_appsync.grid(column=19, row=0, padx=8, pady=4, sticky="e")
+
+        self.button_appsync = tk.Button(self, text="App Sync", command=self.open_sync)
+        self.button_appsync.grid(column=20, row=0, padx=8, pady=4, sticky="e")
+        self.columnconfigure(15, weight=1)
 
         self.button_set_hr["state"] = "disabled"
         self.button_gen_dil["state"] = "disabled"
@@ -156,7 +162,8 @@ class ControlPanel(tk.LabelFrame):
         self.hr_manager = None
         self.dil_manager = None
         self.search_module = None
-        self.reportModule = None
+        self.netcomModule = None
+        self.settingsModule = None
 
         # Set user settings
         try:
@@ -270,7 +277,10 @@ class ControlPanel(tk.LabelFrame):
         main_window.interface_update()
 
     def open_sync(self, *args):
-        self.reportModule = NetcomModule.NetcomModule(self)
+        self.netcomModule = NetcomModule.NetcomModule(self)
+
+    def open_settings(self, *args):
+        self.settingsModule = SettingsModule.SettingsModule(self)
 
     @staticmethod
     def delete_manifest(*args):

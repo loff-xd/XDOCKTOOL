@@ -43,7 +43,7 @@ def report(*args):
             with open(save_location, "w") as report_file:
                 report_file.write(content)
 
-        tkinter.messagebox.showinfo("Report saved", "The error report has been saved. Please send it to the developer")
+            tkinter.messagebox.showinfo("Report saved", "The error report has been saved. Please send it to the developer")
     except Exception as e:
         log(e)
         tkinter.messagebox.showerror("Couldn't send report", "Something went wrong, how inconvenient!\nPlease contact "

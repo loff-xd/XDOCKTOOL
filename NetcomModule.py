@@ -18,7 +18,7 @@ class NetcomModule(tk.Toplevel):
 
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.title("Mobile Sync")
+        self.title("Mobile Sync (BETA)")
         set_centre_geometry(self, 300, 150)
         self.grab_set()
         self.focus()
@@ -31,8 +31,8 @@ class NetcomModule(tk.Toplevel):
 
         self.bind('<Escape>', lambda e: self.destroy())
 
-        self.status_label = tk.Label(self, text="Enter Scanner IP:")
-        self.status_label.grid(column=0, row=0, pady=16)
+        self.status_label = tk.Label(self, text="Sending Manifest: " + backend.selected_manifest + "\n\nEnter Scanner IP:")
+        self.status_label.grid(column=0, row=0, pady=(16, 0))
 
         self.ip_entry = tk.Entry(self)
         self.ip_entry.grid(column=0, row=1)
@@ -42,11 +42,7 @@ class NetcomModule(tk.Toplevel):
         self.sync_button.grid(column=0, row=2, pady=16)
 
     def start_comm_server(self):
-        json_out = {}
-        manifest_out = []
-        for manifest in backend.manifests:
-            manifest_out.append(manifest.export())
-            json_out["Manifests"] = manifest_out
+        json_out = {"Manifests": [backend.get_manifest_from_id(backend.selected_manifest).export()]}
 
         data_out = str.encode(json.dumps(json_out) + "\n")
         timestamp_out = "0"
@@ -61,11 +57,11 @@ class NetcomModule(tk.Toplevel):
             if running:
                 # DATA OUT
                 print("Connection to: " + host)
-                self.status_label["text"] = "Syncing data."
+                self.status_label["text"] = "Syncing data [=--]"
                 self.s.sendall((str(timestamp_out) + "\n").encode())
                 self.s.sendall(data_out)
                 print("sent: " + str(len(data_out)) + " bytes")
-                self.status_label["text"] = "Syncing data.."
+                self.status_label["text"] = "Syncing data [==-]"
 
                 # DATA IN
                 timestamp_in = "0"
@@ -77,26 +73,20 @@ class NetcomModule(tk.Toplevel):
                         break
                     data_in += bytes.decode(recv)
                 print("received: " + str(len(data_in)) + " bytes")
-                self.status_label["text"] = "Syncing data..."
+                self.status_label["text"] = "Syncing data [===]"
 
                 data_in = data_in.split('\n')
 
-                timestamp_in = data_in[0]
+                self.status_label["text"] = "Transaction Finished."
 
-                print(str(timestamp_in) + " > " + str(timestamp_out))
-
-                if int(timestamp_in) > int(timestamp_out):
-                    print("Doing update")
-                    backend.json_load(str(data_in[1]))
-                else:
-                    print("Up to date")
+                print("Transaction finished")
+                # TODO
+                self.s.close()
 
         except OSError as e:
             tk.messagebox.showerror("Connection Failed", "Connection to scanner was unsuccessful.")
-
-        print("Transaction finished")
-        self.s.close()
-        self.destroy()
+            self.s.close()
+            self.destroy()
 
     def stop_comm_thread(self):
         print("netcom stopped")
@@ -113,7 +103,7 @@ class NetcomModule(tk.Toplevel):
         self.ip_entry["state"] = "disabled"
         backend.user_settings["last_ip"] = host
         backend.json_save()
-        self.status_label["text"] = "Starting sync..."
+        self.status_label["text"] = "Starting sync [---]"
         global running
         running = True
         comm_thread = threading.Thread(target=self.start_comm_server)
