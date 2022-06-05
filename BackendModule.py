@@ -62,7 +62,8 @@ user_settings = {
     "open_on_save": True,
     "hr_articles": [],
     "DIL folder": "",
-    "last_ip": ""
+    "last_ip": "",
+    "retention_policy": "0"
 }
 
 x_mgr_ascii = "@@(//@@@@@@@@@@@@@@@@@@(/////////////////(@@@@@@@@@@@@@@@@@&///@@@@@@(///%@@@@@%/////(@@@@@@@@@(////#@@@@@@@@@@@&/////#@\n\

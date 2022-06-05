@@ -77,8 +77,6 @@ class XDTApplication(tk.Frame):
         self.combo_content.set(sorted(backend.manifests))
 
         backend.user_settings["hr_disp_mode"] = str(self.control_panel.var_display_mode.get())
-        backend.user_settings["open_on_save"] = bool(self.control_panel.var_open_on_save.get())
-        backend.user_settings = backend.user_settings
 
         main_window.set_status("Ready.", False)
 
@@ -143,11 +141,6 @@ class ControlPanel(tk.LabelFrame):
         self.display_mode_menu.bind("<<ComboboxSelected>>", self.parent_XDT_app.interface_update)
         self.display_mode_menu["values"] = ("Expand None", "Expand HR", "Expand All")
 
-        self.var_open_on_save = tk.IntVar()
-        self.check_open_on_save = tk.Checkbutton(self, text="Switch to PDF on save", variable=self.var_open_on_save,
-                                                 command=self.parent_XDT_app.interface_update)
-        self.check_open_on_save.grid(column=12, row=0, padx=4, pady=10)
-
         self.button_appsync = tk.Button(self, text="Settings", command=self.open_settings)
         self.button_appsync.grid(column=19, row=0, padx=8, pady=4, sticky="e")
 
@@ -170,11 +163,6 @@ class ControlPanel(tk.LabelFrame):
             self.display_mode_menu.set(backend.user_settings["hr_disp_mode"])
         except Exception:
             self.display_mode_menu.set("Expand None")
-
-        if backend.user_settings["open_on_save"]:
-            self.check_open_on_save.select()
-        else:
-            self.check_open_on_save.deselect()
 
     # noinspection PyBroadException
     def load_recent(self, *args):

@@ -10,6 +10,7 @@ import BackendModule as backend
 host = ""
 port = 7700
 running = True
+sync_version = "v2"
 
 
 class NetcomModule(tk.Toplevel):
@@ -43,12 +44,7 @@ class NetcomModule(tk.Toplevel):
 
     def start_comm_server(self):
         json_out = {"Manifests": [backend.get_manifest_from_id(backend.selected_manifest).export()]}
-
         data_out = str.encode(json.dumps(json_out) + "\n")
-        timestamp_out = "0"
-        for manifest in backend.manifests:
-            if int(manifest.last_modified) > int(timestamp_out):
-                timestamp_out = manifest.last_modified
 
         try:
             self.s.settimeout(5)
@@ -58,13 +54,13 @@ class NetcomModule(tk.Toplevel):
                 # DATA OUT
                 print("Connection to: " + host)
                 self.status_label["text"] = "Syncing data [=--]"
-                self.s.sendall((str(timestamp_out) + "\n").encode())
+
+                self.s.sendall((str(sync_version) + "\n").encode())
+
                 self.s.sendall(data_out)
                 print("sent: " + str(len(data_out)) + " bytes")
                 self.status_label["text"] = "Syncing data [==-]"
 
-                # DATA IN
-                timestamp_in = "0"
                 # DATA IN
                 data_in = ""
                 while running:
@@ -79,9 +75,24 @@ class NetcomModule(tk.Toplevel):
 
                 self.status_label["text"] = "Transaction Finished."
 
-                print("Transaction finished")
-                # TODO
-                self.s.close()
+                for data in data_in:
+                    if "Manifests" in data:
+                        sync_manifest = "000000"
+                        manifest_in = json.loads(data)
+
+                        for entry in manifest_in.get("Manifests"):
+                            sync_manifest = backend.Manifest(entry.get("Manifest ID", "000000"))
+                            for target_sscc in entry.get("SSCCs", []):
+                                sync_sscc = backend.SSCC(target_sscc["SSCC"])
+                                sync_sscc.isScanned = target_sscc.get("Scanned", False)
+                                sync_manifest.ssccs.append(sync_sscc)
+
+                            target_manifest = backend.get_manifest_from_id(sync_manifest.manifest_id)
+                            for target_sscc in target_manifest.ssccs:
+                                sync_sscc = sync_manifest.get_sscc(target_sscc.sscc)
+                                target_sscc.isScanned = sync_sscc.isScanned
+
+                self.stop_comm_thread()
 
         except OSError as e:
             tk.messagebox.showerror("Connection Failed", "Connection to scanner was unsuccessful.")
